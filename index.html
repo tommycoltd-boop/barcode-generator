@@ -170,7 +170,16 @@
         const input = document.getElementById('numberInput');
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
-        // Play sound
+        // Play Bengali "Get Rich" voice
+        function playBengaliVoice() {
+            const utterance = new SpeechSynthesisUtterance('ধনী হও');
+            utterance.lang = 'bn-BD'; // Bengali (Bangladesh)
+            utterance.rate = 1.0;
+            utterance.pitch = 1.2;
+            speechSynthesis.speak(utterance);
+        }
+
+        // Play sound (fallback)
         function playSound(freq) {
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
@@ -206,7 +215,7 @@
             currentNumber++;
             input.value = currentNumber;
             generateBarcode(currentNumber);
-            playSound(800);
+            playBengaliVoice();
         }
 
         // Decrease
