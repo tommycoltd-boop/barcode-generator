@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>极致陪伴 - Phase 2 完整版</title>
+    <title>极致陪伴 - 真实录音版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <style>
@@ -25,59 +25,13 @@
             70% { box-shadow: 0 0 0 30px rgba(239, 68, 68, 0); }
             100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
         }
-        /* 定位加载动画 */
-        .locating-pulse {
-            animation: locatingPulse 1.5s ease-in-out infinite;
-        }
-        @keyframes locatingPulse {
-            0%, 100% { transform: scale(1); opacity: 1; }
-            50% { transform: scale(1.1); opacity: 0.8; }
-        }
-        /* 引导页面的箭头动画 */
-        .bounce-arrow {
-            animation: bounceArrow 1s ease-in-out infinite;
-        }
-        @keyframes bounceArrow {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-20px); }
-        }
     </style>
 </head>
 <body class="bg-gray-100 text-gray-900 h-screen w-screen relative">
 
 <div id="app" class="h-full flex flex-col p-6 fade-enter-active">
 
-    <!-- 定位中界面 -->
-    <div v-if="currentStage === 'locating'" class="flex-1 flex flex-col items-center justify-center fade-enter-active">
-        <span class="text-8xl mb-8 locating-pulse">📍</span>
-        <h2 class="text-5xl font-bold text-gray-800 mb-4">正在找您的位置...</h2>
-        <p class="text-2xl text-gray-500">请稍等</p>
-    </div>
-
-    <!-- 确认起点界面 -->
-    <div v-else-if="currentStage === 'confirmStart'" class="flex-1 flex flex-col items-center justify-center p-6 fade-enter-active">
-        <div class="text-center mb-12">
-            <p class="text-3xl text-gray-600 mb-6">您现在在</p>
-            <h2 class="text-6xl font-black text-gray-800 mb-4">{{ startLocation.address }}</h2>
-            <p class="text-2xl text-gray-400">对吗？</p>
-        </div>
-
-        <!-- 确认起点按钮 -->
-        <button @click="confirmStartLocation"
-                class="w-full bg-green-500 text-white rounded-[40px] p-12 mb-6 apple-shadow-lg active:scale-95 transition-all">
-            <span class="text-7xl mb-4 block">✅</span>
-            <span class="text-5xl font-bold">对，就在这里</span>
-        </button>
-
-        <!-- 手动选择按钮 -->
-        <button @click="skipAutoLocation"
-                class="w-full bg-gray-300 text-gray-700 rounded-[40px] p-8 active:scale-95 transition-all">
-            <span class="text-4xl font-bold">不对，手动选择</span>
-        </button>
-    </div>
-
-    <!-- 主界面 (输入目的地) -->
-    <div v-else-if="currentStage === 'home'" class="flex-1 flex flex-col pt-8">
+    <div v-if="currentStage === 'home'" class="flex-1 flex flex-col pt-8">
         <!-- 错误提示横幅 -->
         <div v-if="errorMessage" class="mb-6 bg-red-100 border-2 border-red-300 rounded-3xl p-6 text-center fade-enter-active">
             <p class="text-2xl text-red-600 font-bold">{{ errorMessage }}</p>
@@ -147,136 +101,27 @@
         </button>
     </div>
 
-    <!-- 引导页面 (新增) -->
-    <div v-else-if="currentStage === 'guide'" class="flex-1 flex flex-col items-center justify-center p-6 fade-enter-active bg-gradient-to-b from-green-400 to-green-600">
-        <div class="text-center text-white mb-12">
-            <h1 class="text-7xl font-black mb-8">准备好了！</h1>
-            <p class="text-5xl font-bold mb-4">请点击下面的</p>
-            <p class="text-6xl font-black mb-8">绿色按钮</p>
-            <p class="text-4xl">车马上就来了</p>
-        </div>
-
-        <!-- 动画箭头 -->
-        <div class="bounce-arrow mb-8">
-            <span class="text-9xl">👇</span>
-        </div>
-
-        <!-- 倒计时 -->
-        <div class="text-white text-8xl font-black mb-12">
-            {{ countdown }}
-        </div>
-
-        <p class="text-white text-3xl opacity-80">{{ countdown }}秒后自动跳转...</p>
-    </div>
-
 </div>
 
 <script>
-    const { createApp, ref, onMounted } = Vue;
+    const { createApp, ref } = Vue;
 
     createApp({
         setup() {
-            // 状态管理
-            const currentStage = ref('locating'); // locating | confirmStart | home | processing | confirm | guide
+            const currentStage = ref('home');
             const isRecording = ref(false);
             const recognizedText = ref('');      // 原始语音识别文本
             const matchedAddress = ref('');      // 匹配到的地址
             const confidence = ref(0);           // 匹配置信度 (0-100)
             const errorMessage = ref('');        // 错误提示信息
-            const countdown = ref(3);            // 引导页倒计时
-
-            // 位置信息
-            const startLocation = ref({
-                lat: null,
-                lng: null,
-                address: '当前位置'
-            });
-
-            // 地址坐标映射 (模拟数据)
-            const ADDRESS_COORDS = {
-                '中山医院': { lat: 31.1993, lng: 121.4337 },
-                '回子女家': { lat: 31.2304, lng: 121.4737 },
-                '去菜场': { lat: 31.2231, lng: 121.4692 }
-            };
 
             let mediaRecorder = null;
             let audioChunks = []; // 用于存放录音的数据块
             let recognition = null; // Web Speech API 实例
-            let countdownTimer = null; // 倒计时定时器
 
             // 触发物理震动 (适老化刚需)
             const vibrate = (pattern = 50) => {
                 if (navigator.vibrate) navigator.vibrate(pattern);
-            };
-
-            // 语音播报函数
-            const speak = (text) => {
-                try {
-                    const utterance = new SpeechSynthesisUtterance(text);
-                    utterance.lang = 'zh-CN';
-                    utterance.rate = 0.8;
-                    utterance.pitch = 1.2;
-                    utterance.volume = 1.0;
-                    speechSynthesis.speak(utterance);
-                } catch (error) {
-                    console.error('语音播报失败:', error);
-                }
-            };
-
-            // 自动定位功能
-            const autoLocate = async () => {
-                currentStage.value = 'locating';
-                vibrate([50]);
-
-                try {
-                    const position = await new Promise((resolve, reject) => {
-                        navigator.geolocation.getCurrentPosition(resolve, reject, {
-                            enableHighAccuracy: true,
-                            timeout: 10000,
-                            maximumAge: 0
-                        });
-                    });
-
-                    startLocation.value = {
-                        lat: position.coords.latitude,
-                        lng: position.coords.longitude,
-                        address: '当前位置'
-                    };
-
-                    console.log('定位成功:', startLocation.value);
-                    currentStage.value = 'confirmStart';
-                    vibrate([50, 50, 50]);
-                    speak('已找到您的位置，请确认');
-
-                } catch (error) {
-                    console.error('定位失败:', error);
-                    showError('定位失败，将使用默认起点');
-                    // 使用默认起点 (中山医院附近)
-                    startLocation.value = {
-                        lat: 31.1993,
-                        lng: 121.4337,
-                        address: '默认起点'
-                    };
-                    currentStage.value = 'home';
-                }
-            };
-
-            // 确认起点位置
-            const confirmStartLocation = () => {
-                vibrate([100, 50, 100]);
-                speak('好的，开始选择目的地');
-                currentStage.value = 'home';
-            };
-
-            // 跳过自动定位
-            const skipAutoLocation = () => {
-                vibrate([50]);
-                startLocation.value = {
-                    lat: 31.1993,
-                    lng: 121.4337,
-                    address: '默认起点'
-                };
-                currentStage.value = 'home';
             };
 
             // 地址数据库
@@ -349,7 +194,6 @@
                     confidence.value = match.confidence;
                     currentStage.value = 'confirm';
                     vibrate([50, 50, 50]); // 成功震动
-                    speak(`您要去${match.address}，对吗？`);
                 } else {
                     // 低置信度 - 显示错误并返回首页
                     showError(`没听清"${text}"，请再说一次`);
@@ -361,7 +205,6 @@
             const showError = (message) => {
                 errorMessage.value = message;
                 vibrate([200, 100, 200]); // 错误震动模式
-                speak(message);
                 setTimeout(() => {
                     errorMessage.value = '';
                 }, 3000);
@@ -438,7 +281,7 @@
                 // 停止录音，这会自动触发上面的 onstop 事件
                 mediaRecorder.stop();
                 isRecording.value = false;
-                vibrate([50, 50, 50]); // 松开时的双震动，告诉老人"录完了"
+                vibrate([50, 50, 50]); // 松开时的双震动，告诉老人”录完了”
 
                 // 停止 Web Speech API
                 if (recognition) {
@@ -448,68 +291,15 @@
                 // 关闭麦克风轨道，释放资源
                 mediaRecorder.stream.getTracks().forEach(track => track.stop());
 
-                // 切换到"处理中"界面
+                // 切换到”处理中”界面
                 currentStage.value = 'processing';
             };
 
-            // 跳转高德地图打车
-            const jumpToAmap = () => {
-                const start = startLocation.value;
-                const end = ADDRESS_COORDS[matchedAddress.value];
-
-                if (!end) {
-                    showError('目的地坐标未找到');
-                    return;
-                }
-
-                const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-                const isAndroid = /Android/i.test(navigator.userAgent);
-
-                let url;
-                if (isIOS) {
-                    // iOS 高德地图 URL Scheme
-                    url = `iosamap://path?sourceApplication=MyApp&slat=${start.lat}&slon=${start.lng}&dlat=${end.lat}&dlon=${end.lng}&dev=0&t=0`;
-                } else if (isAndroid) {
-                    // Android 高德地图 URL Scheme
-                    url = `amapuri://route/plan/?slat=${start.lat}&slon=${start.lng}&dlat=${end.lat}&dlon=${end.lng}&dev=0&t=0`;
-                } else {
-                    // Web fallback
-                    url = `https://uri.amap.com/navigation?from=${start.lng},${start.lat},起点&to=${end.lng},${end.lat},${encodeURIComponent(matchedAddress.value)}&mode=car&coordinate=gaode&callnative=1`;
-                }
-
-                console.log('跳转高德地图:', url);
-                vibrate([100, 50, 100, 50, 100]);
-
-                // 尝试跳转
-                window.location.href = url;
-
-                // 如果 3 秒后还在页面，说明没有安装高德地图
-                setTimeout(() => {
-                    if (document.hasFocus()) {
-                        showError('请先安装高德地图 APP');
-                    }
-                }, 3000);
-            };
-
-            // 确认目的地 - 进入引导页面
+            // 确认目的地
             const confirmDestination = () => {
                 vibrate([100, 50, 100]); // 确认震动
-                currentStage.value = 'guide';
-                countdown.value = 3;
-
-                // 语音播报
-                speak('请点击绿色按钮，车马上就来了');
-
-                // 开始倒计时
-                countdownTimer = setInterval(() => {
-                    countdown.value--;
-                    vibrate([50]); // 每秒震动一次
-
-                    if (countdown.value <= 0) {
-                        clearInterval(countdownTimer);
-                        jumpToAmap(); // 倒计时结束，跳转高德地图
-                    }
-                }, 1000);
+                alert(`已确认目的地: ${matchedAddress.value}\n\n(Phase 2 将自动呼叫滴滴)`);
+                currentStage.value = 'home';
             };
 
             // 快捷按钮直接确认地址
@@ -518,13 +308,7 @@
                 confidence.value = 100;
                 currentStage.value = 'confirm';
                 vibrate([50, 50, 50]);
-                speak(`您要去${address}，对吗？`);
             };
-
-            // 页面加载时自动定位
-            onMounted(() => {
-                autoLocate();
-            });
 
             return {
                 currentStage,
@@ -533,14 +317,10 @@
                 matchedAddress,
                 confidence,
                 errorMessage,
-                countdown,
-                startLocation,
                 startRecording,
                 stopRecording,
                 confirmDestination,
-                confirmAddress,
-                confirmStartLocation,
-                skipAutoLocation
+                confirmAddress
             };
         }
     }).mount('#app');
