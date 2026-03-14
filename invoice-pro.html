@@ -1,0 +1,2613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invoice Pro</title>
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root { --primary: #1e40af; --primary-light: #3b82f6; --accent: #ea580c; --success: #16a34a; --danger: #dc2626; --bg: #f8fafc; --bg-alt: #f1f5f9; --border: #e2e8f0; --text: #1e293b; --text-muted: #64748b; --white: #ffffff; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Inter', -apple-system, sans-serif; background: var(--bg); color: var(--text); font-size: 14px; }
+        .app-container { display: flex; min-height: 100vh; }
+        .sidebar { width: 200px; background: var(--primary); color: white; position: fixed; left: 0; top: 0; bottom: 0; z-index: 50; overflow-y: auto; }
+        .sidebar-header { padding: 16px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .sidebar-header h1 { font-size: 1.1rem; font-weight: 700; }
+        .sidebar-nav { padding: 12px 8px; }
+        .nav-btn { width: 100%; padding: 10px 12px; border: none; background: transparent; color: rgba(255,255,255,0.8); font-size: 0.85rem; text-align: left; cursor: pointer; border-radius: 6px; display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+        .nav-btn:hover, .nav-btn.active { background: rgba(255,255,255,0.15); color: white; }
+        .nav-btn .badge { margin-left: auto; background: var(--accent); font-size: 0.7rem; padding: 2px 6px; border-radius: 10px; }
+        .main-content { flex: 1; margin-left: 200px; }
+        .top-bar { background: var(--white); padding: 12px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; position: sticky; top: 0; z-index: 40; }
+        .top-bar h2 { font-size: 1.1rem; font-weight: 600; }
+        .top-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+        .btn { font-size: 0.8rem; padding: 8px 14px; border: 1px solid var(--border); border-radius: 6px; cursor: pointer; background: var(--white); display: inline-flex; align-items: center; gap: 5px; font-weight: 500; }
+        .btn:hover { background: var(--bg-alt); }
+        .btn-primary { background: var(--primary); color: white; border-color: var(--primary); }
+        .btn-accent { background: var(--accent); color: white; border-color: var(--accent); }
+        .btn-success { background: var(--success); color: white; border-color: var(--success); }
+        .btn-danger { background: var(--danger); color: white; border-color: var(--danger); }
+        .content-area { padding: 20px; padding-bottom: 100px; }
+        .panel { display: none; }
+        .panel.active { display: block; }
+        .controls-bar { display: flex; align-items: center; justify-content: center; gap: 16px; margin-bottom: 16px; padding: 10px 16px; background: var(--white); border: 1px solid var(--border); border-radius: 8px; flex-wrap: wrap; }
+        .control-group { display: flex; align-items: center; gap: 6px; }
+        .control-group label { font-size: 0.8rem; color: var(--text-muted); }
+        .control-group input[type="range"] { width: 100px; }
+        .control-value { font-size: 0.8rem; font-weight: 600; color: var(--primary); min-width: 45px; }
+        .invoice-doc { background: var(--white); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin: 0 auto; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        .invoice-header { background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%); color: white; padding: 16px 20px; display: flex; justify-content: space-between; align-items: flex-start; }
+        .invoice-title select { background: transparent; border: none; color: white; font-size: 1.25rem; font-weight: 700; cursor: pointer; outline: none; }
+        .invoice-title select option { color: var(--text); }
+        .invoice-title span { display: block; font-size: 0.75rem; opacity: 0.9; margin-top: 4px; }
+        .invoice-meta { text-align: right; }
+        .invoice-meta input { background: rgba(255,255,255,0.2); border: none; color: white; padding: 6px 10px; border-radius: 4px; font-family: monospace; font-size: 0.9rem; text-align: right; width: 140px; }
+        .invoice-date { font-size: 0.8rem; opacity: 0.9; margin-top: 6px; }
+        .parties-grid { display: grid; grid-template-columns: 1fr 1fr; }
+        .party-box { padding: 16px 20px; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+        .party-box:first-child { border-right: 1px solid var(--border); border-left: 1px solid var(--border); }
+        .party-box:last-child { border-right: 1px solid var(--border); }
+        .party-label { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; color: var(--primary); margin-bottom: 8px; background: var(--bg-alt); padding: 8px 12px; margin: -16px -20px 12px -20px; border-bottom: 1px solid var(--border); }
+        .party-content input, .party-content textarea { width: 100%; border: none; border-bottom: 1px solid var(--border); padding: 6px 0; font-size: 0.85rem; background: transparent; margin-bottom: 4px; font-family: inherit; resize: none; white-space: pre-wrap; word-wrap: break-word; overflow-wrap: break-word; line-height: 1.4; }
+        .party-content input:focus, .party-content textarea:focus { outline: none; border-color: var(--primary); }
+        .party-content input.company-input { font-weight: 600; font-size: 0.95rem; }
+        .search-wrapper { position: relative; }
+        .search-dropdown { position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid var(--border); border-radius: 0 0 8px 8px; max-height: 180px; overflow-y: auto; z-index: 100; box-shadow: 0 8px 24px rgba(0,0,0,0.12); display: none; }
+        .search-dropdown.show { display: block; }
+        .search-dropdown-item { padding: 10px 12px; cursor: pointer; border-bottom: 1px solid var(--border); }
+        .search-dropdown-item:hover { background: var(--bg-alt); }
+        .item-name { font-weight: 500; font-size: 0.85rem; }
+        .item-detail { font-size: 0.75rem; color: var(--text-muted); }
+        .products-table { width: 100%; border-collapse: separate; border-spacing: 0; border: 1px solid var(--border); }
+        .products-table th { background: var(--bg-alt); padding: 10px 12px; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; color: var(--text-muted); text-align: left; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+        .products-table th:last-child { border-right: none; }
+        .products-table td { padding: 0; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); vertical-align: top; }
+        .products-table td:last-child { border-right: none; }
+        .products-table td input, .products-table td textarea { width: 100%; padding: 10px 12px; border: none; font-size: 0.85rem; background: transparent; font-family: inherit; resize: none; min-height: 40px; line-height: 1.4; display: block; }
+        .products-table td textarea { overflow: visible; white-space: pre-wrap; word-wrap: break-word; }
+        .products-table .amount-cell { padding: 10px 12px; font-family: monospace; font-size: 0.85rem; background: var(--bg-alt); text-align: right; font-weight: 500; vertical-align: middle; }
+        .products-table .action-cell { width: 36px; text-align: center; padding: 4px; vertical-align: middle; }
+        .remove-btn { width: 24px; height: 24px; border: none; background: #fee2e2; color: var(--danger); border-radius: 4px; cursor: pointer; font-size: 1rem; }
+        .add-row-area { padding: 10px 12px; background: var(--bg-alt); }
+        .add-row-btn { padding: 8px 16px; border: 2px dashed var(--border); border-radius: 6px; background: transparent; color: var(--text-muted); cursor: pointer; font-size: 0.8rem; }
+        .totals-area { display: flex; justify-content: flex-end; background: var(--bg-alt); padding: 12px 20px; }
+        .totals-table { width: 300px; }
+        .totals-table td { padding: 8px 12px; font-size: 0.85rem; white-space: nowrap; }
+        .totals-table td:first-child { text-align: right; color: var(--text-muted); width: 100px; }
+        .totals-table td:last-child { font-family: monospace; text-align: right; font-weight: 500; min-width: 140px; }
+        .totals-table td input { width: 100%; border: none; background: transparent; text-align: right; font-family: monospace; }
+        .totals-table .total-row { background: var(--primary); border-radius: 6px; }
+        .totals-table .total-row td { color: white; font-weight: 700; font-size: 1rem; }
+        .bottom-section { display: grid; grid-template-columns: 1fr 1fr; border-top: 1px solid var(--border); }
+        .info-box { padding: 14px 16px; border-bottom: 1px solid var(--border); min-height: fit-content; }
+        .info-box:nth-child(odd) { border-right: 1px solid var(--border); }
+        .info-box:last-child, .info-box:nth-last-child(2) { border-bottom: none; }
+        .info-label { font-size: 0.65rem; font-weight: 600; text-transform: uppercase; color: var(--primary); margin-bottom: 8px; }
+        .info-row { display: flex; gap: 6px; margin-bottom: 6px; font-size: 0.78rem; align-items: flex-start; }
+        .info-row label { color: var(--text-muted); min-width: 65px; flex-shrink: 0; font-size: 0.7rem; padding-top: 2px; }
+        .info-row input { flex: 1; border: none; border-bottom: 1px dashed var(--border); padding: 2px 0; font-size: 0.78rem; background: transparent; min-width: 0; line-height: 1.4; }
+        .info-row span { color: var(--text); font-size: 0.75rem; word-break: break-word; overflow-wrap: break-word; flex: 1; line-height: 1.5; min-width: 0; }
+        .stamp-box { padding: 14px 16px; display: flex; flex-direction: column; align-items: center; justify-content: center; border-bottom: none; min-height: 100px; }
+        .stamp-area { border: 2px dashed var(--border); border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; overflow: hidden; position: relative; background: var(--bg-alt); width: 140px; height: 80px; }
+        .stamp-area img { width: 100%; height: 100%; object-fit: contain; }
+        .stamp-area .stamp-placeholder { font-size: 0.7rem; color: var(--text-muted); text-align: center; padding: 8px; }
+        .stamp-delete { position: absolute; top: 4px; right: 4px; width: 20px; height: 20px; background: var(--danger); color: white; border: none; border-radius: 50%; cursor: pointer; font-size: 0.7rem; display: none; }
+        .stamp-area:hover .stamp-delete { display: flex; align-items: center; justify-content: center; }
+        .library-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+        .library-card { background: var(--white); border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+        .library-card-header { display: flex; justify-content: space-between; margin-bottom: 8px; }
+        .library-card-title { font-weight: 600; font-size: 0.95rem; }
+        .library-card-detail { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 4px; }
+        .history-item { background: var(--white); border: 1px solid var(--border); border-radius: 8px; padding: 14px 18px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+        .history-info h4 { font-size: 0.9rem; margin-bottom: 4px; }
+        .history-info p { font-size: 0.8rem; color: var(--text-muted); }
+        .history-amount { font-family: monospace; font-weight: 700; color: var(--primary); }
+        .history-actions { display: flex; gap: 6px; margin-left: 12px; }
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 1000; padding: 20px; }
+        .modal-overlay.show { display: flex; }
+        .modal { background: white; border-radius: 12px; width: 100%; max-width: 600px; max-height: 90vh; overflow: hidden; display: flex; flex-direction: column; }
+        .modal-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: var(--bg-alt); }
+        .modal-header h3 { font-size: 1.05rem; font-weight: 600; }
+        .modal-close { background: none; border: none; font-size: 1.4rem; cursor: pointer; color: var(--text-muted); }
+        .modal-body { padding: 20px; overflow-y: auto; flex: 1; }
+        .modal-footer { padding: 14px 20px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 8px; background: var(--bg-alt); }
+        .form-group { margin-bottom: 14px; }
+        .form-group label { display: block; font-size: 0.8rem; font-weight: 500; margin-bottom: 6px; }
+        .form-group input, .form-group textarea, .form-group select { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.9rem; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .import-zone { border: 2px dashed var(--border); border-radius: 12px; padding: 32px; text-align: center; cursor: pointer; background: var(--bg-alt); }
+        .import-zone:hover { border-color: var(--primary); background: white; }
+        .import-zone-icon { font-size: 3rem; margin-bottom: 12px; }
+        .import-zone-text { font-size: 1rem; font-weight: 500; margin-bottom: 6px; }
+        .import-zone-hint { font-size: 0.8rem; color: var(--text-muted); }
+        .ai-status { padding: 12px; border-radius: 8px; margin-bottom: 16px; display: flex; align-items: center; gap: 10px; }
+        .ai-status.processing { background: #dbeafe; color: #1e40af; }
+        .ai-status.success { background: #d1fae5; color: #065f46; }
+        .ai-status.error { background: #fee2e2; color: #991b1b; }
+        .ai-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 12px; font-size: 0.7rem; font-weight: 600; }
+        .ai-badge.deepseek { background: #6366f1; color: white; }
+        .ai-badge.gemini { background: #10b981; color: white; }
+        .preview-section { background: var(--bg-alt); padding: 16px; border-radius: 8px; margin-bottom: 16px; }
+        .preview-section h4 { font-size: 0.9rem; margin-bottom: 12px; color: var(--primary); display: flex; align-items: center; gap: 8px; }
+        .preview-grid { display: grid; gap: 8px; }
+        .preview-row { display: grid; grid-template-columns: 100px 1fr; gap: 8px; font-size: 0.85rem; }
+        .preview-row label { color: var(--text-muted); }
+        .preview-row span { color: var(--text); }
+        .preview-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+        .preview-table th { background: var(--primary); color: white; padding: 8px; text-align: left; }
+        .preview-table td { padding: 6px 8px; border-bottom: 1px solid var(--border); }
+        .share-options { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .share-option { padding: 20px 16px; border: 2px solid var(--border); border-radius: 12px; text-align: center; cursor: pointer; }
+        .share-option:hover { border-color: var(--primary); background: var(--bg-alt); }
+        .share-option-icon { font-size: 2.5rem; margin-bottom: 10px; }
+        .share-option-text { font-size: 0.9rem; font-weight: 600; }
+        .share-result { margin-top: 16px; padding: 16px; border-radius: 8px; }
+        .share-result.success { background: #d1fae5; color: #065f46; }
+        .share-result.info { background: #dbeafe; color: #1e40af; }
+        .share-result.warning { background: #fef3c7; color: #92400e; }
+        .api-config { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 16px; border-radius: 12px; margin-bottom: 20px; }
+        .sync-config { background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 16px; border-radius: 12px; margin-bottom: 20px; }
+        .sync-config h4 { margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+        .sync-code-display { background: rgba(255,255,255,0.95); color: #1e293b; padding: 16px 24px; border-radius: 8px; font-family: monospace; font-size: 1.8rem; font-weight: 700; letter-spacing: 4px; text-align: center; margin: 12px 0; }
+        .sync-input { display: flex; gap: 8px; margin-top: 12px; }
+        .sync-input input { flex: 1; padding: 12px; border: none; border-radius: 6px; font-size: 1rem; font-family: monospace; text-transform: uppercase; letter-spacing: 2px; text-align: center; }
+        .sync-status { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-radius: 6px; margin-top: 12px; font-size: 0.85rem; }
+        .sync-status.success { background: rgba(255,255,255,0.2); }
+        .sync-status.syncing { background: rgba(255,255,255,0.15); }
+        .sync-status.error { background: rgba(239,68,68,0.3); }
+        .sync-btn { padding: 10px 20px; border: 2px solid rgba(255,255,255,0.5); background: rgba(255,255,255,0.1); color: white; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 0.9rem; }
+        .sync-btn:hover { background: rgba(255,255,255,0.2); border-color: white; }
+        .sync-btn.primary { background: white; color: #059669; border-color: white; }
+        .sync-btn.primary:hover { background: #f0fdf4; }
+        .api-config h4 { margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+        .api-config .form-group label { color: rgba(255,255,255,0.9); }
+        .api-config input, .api-config select { background: rgba(255,255,255,0.9); }
+        .toast { position: fixed; bottom: 24px; right: 24px; padding: 14px 20px; background: var(--text); color: white; border-radius: 8px; font-size: 0.9rem; z-index: 2000; animation: slideUp 0.3s; }
+        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .empty-state { text-align: center; padding: 48px 24px; color: var(--text-muted); }
+        .empty-state-icon { font-size: 3rem; margin-bottom: 16px; }
+        .mobile-nav { display: none; position: fixed; bottom: 0; left: 0; right: 0; background: var(--white); border-top: 1px solid var(--border); padding: 8px; z-index: 100; }
+        .mobile-nav-btn { flex: 1; padding: 8px 4px; border: none; background: none; display: flex; flex-direction: column; align-items: center; font-size: 0.65rem; color: var(--text-muted); cursor: pointer; }
+        .mobile-nav-btn.active { color: var(--primary); }
+        .mobile-nav-btn span:first-child { font-size: 1.2rem; }
+        .loading { display: inline-block; width: 20px; height: 20px; border: 2px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: spin 0.8s linear infinite; }
+        .loading-white { border-color: rgba(255,255,255,0.3); border-top-color: white; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @media (max-width: 768px) { .sidebar { display: none; } .main-content { margin-left: 0; } .mobile-nav { display: flex; } .parties-grid, .bottom-section { grid-template-columns: 1fr; } .party-box:first-child { border-right: none; border-bottom: 1px solid var(--border); } .info-box { border-right: none !important; border-bottom: 1px solid var(--border); } .form-row { grid-template-columns: 1fr; } .share-options { grid-template-columns: 1fr; } }
+        @media print {
+            body * { visibility: hidden; }
+            #invoice-capture, #invoice-capture * { visibility: visible; }
+            #invoice-capture {
+                position: absolute;
+                left: 50%;
+                transform: translateX(-50%);
+                top: 0;
+                width: 800px !important;
+                max-width: 800px !important;
+                margin: 0 auto;
+            }
+            .add-row-area, .action-cell, .stamp-delete { display: none !important; }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <aside class="sidebar">
+            <div class="sidebar-header"><h1>📄 Invoice Pro</h1></div>
+            <nav class="sidebar-nav">
+                <button class="nav-btn active" onclick="showPanel('invoice')"><span>📝</span> Invoice</button>
+                <button class="nav-btn" onclick="showPanel('products')"><span>📦</span> Products <span class="badge" id="products-count">0</span></button>
+                <button class="nav-btn" onclick="showPanel('customers')"><span>👥</span> Customers <span class="badge" id="customers-count">0</span></button>
+                <button class="nav-btn" onclick="showPanel('history')"><span>📋</span> History <span class="badge" id="history-count">0</span></button>
+                <button class="nav-btn" onclick="showPanel('settings')"><span>⚙️</span> Settings</button>
+            </nav>
+        </aside>
+
+        <main class="main-content">
+            <div class="panel active" id="panel-invoice">
+                <div class="top-bar">
+                    <h2>📝 Invoice</h2>
+                    <div class="top-actions">
+                        <button class="btn" onclick="showImportModal()">🤖 AI Import</button>
+                        <button class="btn" onclick="clearInvoice()">🗑️</button>
+                        <button class="btn" onclick="saveToHistory()">💾</button>
+                        <button class="btn btn-accent" onclick="previewInvoice()">👁️</button>
+                        <button class="btn btn-primary" onclick="showShareModal()">📤</button>
+                    </div>
+                </div>
+                <div class="content-area">
+                    <div class="controls-bar">
+                        <div class="control-group"><label>📐 Width:</label><input type="range" min="550" max="950" value="800" oninput="adjustWidth(this.value)"><span class="control-value" id="width-value">800px</span></div>
+                        <div class="control-group"><label>🖼️ Stamp:</label><input type="range" min="100" max="200" value="140" oninput="adjustStampSize(this.value)"><span class="control-value" id="stamp-size-value">140px</span></div>
+                    </div>
+                    
+                    <div class="invoice-doc" id="invoice-capture" style="max-width:800px;">
+                        <div class="invoice-header">
+                            <div class="invoice-title">
+                                <select id="invoice-type"><option value="PROFORMA INVOICE">PROFORMA INVOICE</option><option value="QUOTATION">QUOTATION</option><option value="COMMERCIAL INVOICE">COMMERCIAL INVOICE</option></select>
+                                <span>International Trade Document</span>
+                            </div>
+                            <div class="invoice-meta">
+                                <input type="text" id="invoice-no" value="PI-2026-001">
+                                <input type="text" id="invoice-date" class="invoice-date-input" style="background:rgba(255,255,255,0.2);border:none;color:white;padding:4px 8px;border-radius:4px;font-size:0.8rem;text-align:right;width:140px;margin-top:6px;">
+                            </div>
+                        </div>
+                        <div class="parties-grid">
+                            <div class="party-box">
+                                <div class="party-label">📤 SELLER</div>
+                                <div class="party-content">
+                                    <input type="text" id="seller-company" class="company-input" placeholder="Company">
+                                    <textarea id="seller-address" placeholder="Address" rows="2"></textarea>
+                                    <input type="text" id="seller-contact" placeholder="Tel / Email">
+                                </div>
+                            </div>
+                            <div class="party-box">
+                                <div class="party-label">📥 BUYER</div>
+                                <div class="party-content search-wrapper">
+                                    <input type="text" id="buyer-company" class="company-input" placeholder="Company" oninput="showCustomerDropdown(this)" onfocus="showCustomerDropdown(this)" onblur="autoSaveCustomer()">
+                                    <div class="search-dropdown" id="buyer-dropdown"></div>
+                                    <textarea id="buyer-address" placeholder="Address" rows="2" onblur="autoSaveCustomer()"></textarea>
+                                    <input type="text" id="buyer-contact" placeholder="Tel / Email" onblur="autoSaveCustomer()">
+                                </div>
+                            </div>
+                        </div>
+                        <table class="products-table">
+                            <thead><tr><th style="width:42%">Description</th><th style="width:14%">Qty</th><th style="width:14%">Price</th><th style="width:16%">Amount</th><th class="action-cell"></th></tr></thead>
+                            <tbody id="invoice-products"></tbody>
+                        </table>
+                        <div class="add-row-area"><button class="add-row-btn" onclick="addProductRow()">+ Add Product</button></div>
+                        <div class="totals-area">
+                            <table class="totals-table">
+                                <tr><td>Subtotal</td><td id="subtotal">USD 0.00</td></tr>
+                                <tr><td>Shipping</td><td><input type="text" id="shipping" placeholder="0.00" oninput="calcTotals()" onblur="formatShipping()"></td></tr>
+                                <tr class="total-row"><td>TOTAL</td><td id="total">USD 0.00</td></tr>
+                            </table>
+                        </div>
+                        <div class="bottom-section">
+                            <div class="info-box">
+                                <div class="info-label">📋 TERMS</div>
+                                <div class="info-row"><label>Payment:</label><input type="text" id="payment-terms"></div>
+                                <div class="info-row"><label>PI Validity:</label><input type="text" id="pi-validity"></div>
+                                <div class="info-row"><label>Lead:</label><input type="text" id="lead-time"></div>
+                                <div class="info-row"><label>Incoterm:</label><input type="text" id="ship-terms"></div>
+                                <div class="info-row"><label>Dest:</label><input type="text" id="destination"></div>
+                            </div>
+                            <div class="info-box">
+                                <div class="info-label">🏦 BANK</div>
+                                <div class="info-row"><label>Bank:</label><span id="disp-bank-name">-</span></div>
+                                <div class="info-row"><label>Account:</label><span id="disp-acct-name">-</span></div>
+                                <div class="info-row"><label>A/C No:</label><span id="disp-acct-no">-</span></div>
+                                <div class="info-row"><label>SWIFT:</label><span id="disp-swift">-</span></div>
+                                <div class="info-row"><label>Address:</label><span id="disp-bank-addr">-</span></div>
+                            </div>
+                            <div class="info-box">
+                                <div class="info-label">🔄 INTERMEDIARY</div>
+                                <div class="info-row"><label>Bank:</label><span id="disp-inter-name">-</span></div>
+                                <div class="info-row"><label>SWIFT:</label><span id="disp-inter-swift">-</span></div>
+                                <div class="info-row"><label>Address:</label><span id="disp-inter-addr">-</span></div>
+                            </div>
+                            <div class="info-box stamp-box">
+                                <div class="stamp-area" id="stamp-area" onclick="document.getElementById('stamp-input').click()">
+                                    <img id="stamp-img" style="display:none;">
+                                    <span class="stamp-placeholder" id="stamp-text">Stamp</span>
+                                    <button class="stamp-delete" onclick="event.stopPropagation();deleteStamp()">×</button>
+                                </div>
+                                <input type="file" id="stamp-input" accept="image/*" style="display:none" onchange="loadStamp(this)">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel" id="panel-products">
+                <div class="top-bar"><h2>📦 Products</h2><div class="top-actions"><button class="btn btn-accent" onclick="showModal('product')">+ Add</button></div></div>
+                <div class="content-area"><div class="library-grid" id="products-grid"></div></div>
+            </div>
+
+            <div class="panel" id="panel-customers">
+                <div class="top-bar"><h2>👥 Customers</h2><div class="top-actions"><button class="btn btn-accent" onclick="showModal('customer')">+ Add</button></div></div>
+                <div class="content-area"><div class="library-grid" id="customers-grid"></div></div>
+            </div>
+
+            <div class="panel" id="panel-history">
+                <div class="top-bar"><h2>📋 History</h2><button class="btn btn-danger" onclick="clearHistory()">🗑️</button></div>
+                <div class="content-area"><div id="history-list"></div></div>
+            </div>
+
+            <div class="panel" id="panel-settings">
+                <div class="top-bar"><h2>⚙️ Settings</h2><button class="btn btn-success" onclick="saveSettings()">💾 Save</button></div>
+                <div class="content-area">
+                    <!-- Data Backup -->
+                    <div class="sync-config" style="margin-bottom:16px;">
+                        <h4>💾 Data Backup</h4>
+                        <p style="font-size:0.85rem;opacity:0.9;margin-bottom:12px;">Export data to file or import from backup</p>
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                            <button class="sync-btn primary" onclick="exportAllData()">📥 Export to File</button>
+                            <button class="sync-btn primary" onclick="document.getElementById('import-backup-file').click()">📤 Import from File</button>
+                        </div>
+                        <input type="file" id="import-backup-file" accept=".json" style="display:none" onchange="importAllData(this)">
+                        
+                        <!-- Auto Backup Settings -->
+                        <div style="margin-top:16px;padding-top:12px;border-top:1px solid rgba(0,0,0,0.1);">
+                            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+                                <input type="checkbox" id="auto-backup-reminder" onchange="saveAutoBackupSettings()">
+                                <label for="auto-backup-reminder" style="font-size:0.85rem;">🔔 Remind me to backup every</label>
+                                <select id="backup-reminder-days" style="padding:4px 8px;border-radius:4px;border:1px solid #ccc;" onchange="saveAutoBackupSettings()">
+                                    <option value="1">1 day</option>
+                                    <option value="3">3 days</option>
+                                    <option value="7" selected>7 days</option>
+                                    <option value="14">14 days</option>
+                                    <option value="30">30 days</option>
+                                </select>
+                            </div>
+                            <div style="display:flex;align-items:center;gap:8px;">
+                                <input type="checkbox" id="auto-backup-on-save" onchange="saveAutoBackupSettings()">
+                                <label for="auto-backup-on-save" style="font-size:0.85rem;">💾 Auto-download backup when saving invoice</label>
+                            </div>
+                        </div>
+                        
+                        <div id="backup-status" style="margin-top:10px;"></div>
+                    </div>
+                    
+                    <!-- Cloud Sync Configuration -->
+                    <div class="sync-config">
+                        <h4>☁️ Device Sync</h4>
+                        <p style="font-size:0.85rem;opacity:0.9;margin-bottom:12px;">Sync data between devices on the same WiFi (P2P)</p>
+                        
+                        <div id="sync-mode-select">
+                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                                <button class="sync-btn primary" onclick="startSyncHost()">📤 Share Data</button>
+                                <button class="sync-btn primary" onclick="showJoinInput()">📥 Receive Data</button>
+                            </div>
+                        </div>
+                        
+                        <div id="sync-host-section" style="display:none;">
+                            <p style="font-size:0.85rem;margin:12px 0 8px;">Share this code with another device:</p>
+                            <div class="sync-code-display" id="host-code">------</div>
+                            <div style="text-align:center;">
+                                <button class="sync-btn" onclick="copySyncCode()">📋 Copy Code</button>
+                                <button class="sync-btn" onclick="cancelSync()" style="margin-left:8px;">✖ Cancel</button>
+                            </div>
+                            <div class="sync-status syncing" id="host-status" style="margin-top:12px;">
+                                <div class="loading loading-white" style="width:16px;height:16px;"></div>
+                                <span>Waiting for connection...</span>
+                            </div>
+                        </div>
+                        
+                        <div id="sync-join-section" style="display:none;">
+                            <p style="font-size:0.85rem;margin:12px 0 8px;">Enter code from other device:</p>
+                            <div class="sync-input">
+                                <input type="text" id="join-code-input" placeholder="XXXXXX" maxlength="6" oninput="this.value=this.value.toUpperCase()">
+                                <button class="sync-btn primary" onclick="joinSync()">Connect</button>
+                            </div>
+                            <button class="sync-btn" onclick="cancelSync()" style="margin-top:10px;">✖ Cancel</button>
+                            <div class="sync-status" id="join-status" style="display:none;margin-top:12px;"></div>
+                        </div>
+                        
+                        <div id="sync-success-section" style="display:none;">
+                            <div class="sync-status success">
+                                <span>✅</span><span id="sync-result-text">Sync complete!</span>
+                            </div>
+                            <button class="sync-btn" onclick="resetSyncUI()" style="margin-top:12px;">Done</button>
+                        </div>
+                    </div>
+                    
+                    <!-- AI API Configuration -->
+                    <div class="api-config">
+                        <h4>🤖 AI Import Settings</h4>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>AI Provider</label>
+                                <select id="ai-provider">
+                                    <option value="deepseek">DeepSeek</option>
+                                    <option value="gemini">Gemini 2.5 Flash</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>API Key</label>
+                                <input type="password" id="ai-api-key" placeholder="Enter your API key">
+                            </div>
+                        </div>
+                        <p style="font-size:0.75rem;opacity:0.8;margin-top:8px;">🔒 API key is stored locally in your browser only.</p>
+                    </div>
+                    
+                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;">
+                        <div class="library-card">
+                            <h3 style="margin-bottom:16px;">🏢 Company</h3>
+                            <div class="form-group"><label>Name</label><input type="text" id="my-company"></div>
+                            <div class="form-group"><label>Address</label><textarea id="my-address" rows="2"></textarea></div>
+                            <div class="form-group"><label>Contact</label><input type="text" id="my-contact"></div>
+                            <div class="form-group"><label>Stamp</label><button class="btn" onclick="document.getElementById('settings-stamp').click()">📷 Upload</button><span id="stamp-status" style="margin-left:8px;font-size:0.8rem;"></span><input type="file" id="settings-stamp" accept="image/*" style="display:none" onchange="uploadSettingsStamp(this)"></div>
+                        </div>
+                        <div class="library-card">
+                            <h3 style="margin-bottom:16px;">🏦 Bank</h3>
+                            <div class="form-group"><label>Bank Name</label><input type="text" id="bank-name"></div>
+                            <div class="form-group"><label>Account Name</label><input type="text" id="acct-name"></div>
+                            <div class="form-group"><label>Account No</label><input type="text" id="acct-no"></div>
+                            <div class="form-group"><label>SWIFT</label><input type="text" id="swift-code"></div>
+                            <div class="form-group"><label>Bank Address</label><input type="text" id="bank-addr"></div>
+                        </div>
+                        <div class="library-card">
+                            <h3 style="margin-bottom:16px;">🔄 Intermediary</h3>
+                            <div class="form-group"><label>Bank Name</label><input type="text" id="inter-bank-name"></div>
+                            <div class="form-group"><label>SWIFT</label><input type="text" id="inter-swift"></div>
+                            <div class="form-group"><label>Bank Address</label><input type="text" id="inter-addr"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <nav class="mobile-nav">
+        <button class="mobile-nav-btn active" onclick="showPanel('invoice')"><span>📝</span><span>Invoice</span></button>
+        <button class="mobile-nav-btn" onclick="showPanel('products')"><span>📦</span><span>Products</span></button>
+        <button class="mobile-nav-btn" onclick="showPanel('customers')"><span>👥</span><span>Customers</span></button>
+        <button class="mobile-nav-btn" onclick="showPanel('history')"><span>📋</span><span>History</span></button>
+        <button class="mobile-nav-btn" onclick="showPanel('settings')"><span>⚙️</span><span>Settings</span></button>
+    </nav>
+
+    <!-- Modals -->
+    <div class="modal-overlay" id="modal-product"><div class="modal"><div class="modal-header"><h3>Add Product</h3><button class="modal-close" onclick="hideModal('product')">×</button></div><div class="modal-body"><div class="form-group"><label>Name</label><input type="text" id="new-product-name"></div><div class="form-group"><label>Unit</label><input type="text" id="new-product-unit" value="pcs"></div><div class="form-group"><label>Price (number only)</label><input type="text" id="new-product-price" placeholder="e.g. 100"></div></div><div class="modal-footer"><button class="btn" onclick="hideModal('product')">Cancel</button><button class="btn btn-accent" onclick="saveProduct()">Save</button></div></div></div>
+
+    <div class="modal-overlay" id="modal-customer"><div class="modal"><div class="modal-header"><h3>Add Customer</h3><button class="modal-close" onclick="hideModal('customer')">×</button></div><div class="modal-body"><div class="form-group"><label>Company</label><input type="text" id="new-customer-company"></div><div class="form-group"><label>Address</label><textarea id="new-customer-address" rows="2"></textarea></div><div class="form-group"><label>Contact</label><input type="text" id="new-customer-contact"></div></div><div class="modal-footer"><button class="btn" onclick="hideModal('customer')">Cancel</button><button class="btn btn-accent" onclick="saveCustomer()">Save</button></div></div></div>
+
+    <!-- AI Import Modal -->
+    <div class="modal-overlay" id="modal-import">
+        <div class="modal" style="max-width:700px;">
+            <div class="modal-header"><h3>🤖 AI Smart Import</h3><button class="modal-close" onclick="hideModal('import')">×</button></div>
+            <div class="modal-body">
+                <div id="import-step1">
+                    <div class="import-zone" onclick="document.getElementById('import-file').click()">
+                        <div class="import-zone-icon">📄</div>
+                        <div class="import-zone-text">Upload Invoice File</div>
+                        <div class="import-zone-hint">Excel, PDF, or Image (JPG/PNG)</div>
+                    </div>
+                    <input type="file" id="import-file" accept=".xlsx,.xls,.pdf,.csv,.jpg,.jpeg,.png" style="display:none" onchange="handleAIImport(this)">
+                </div>
+                
+                <div id="import-step2" style="display:none;">
+                    <div class="ai-status processing" id="ai-status">
+                        <div class="loading loading-white"></div>
+                        <span>AI is analyzing your document...</span>
+                    </div>
+                    
+                    <div id="import-preview" style="display:none;">
+                        <div class="preview-section">
+                            <h4>📤 Seller</h4>
+                            <div class="preview-grid">
+                                <div class="preview-row"><label>Company:</label><span id="prev-seller-company">-</span></div>
+                                <div class="preview-row"><label>Address:</label><span id="prev-seller-address">-</span></div>
+                                <div class="preview-row"><label>Contact:</label><span id="prev-seller-contact">-</span></div>
+                            </div>
+                        </div>
+                        <div class="preview-section">
+                            <h4>📥 Buyer</h4>
+                            <div class="preview-grid">
+                                <div class="preview-row"><label>Company:</label><span id="prev-buyer-company">-</span></div>
+                                <div class="preview-row"><label>Address:</label><span id="prev-buyer-address">-</span></div>
+                                <div class="preview-row"><label>Contact:</label><span id="prev-buyer-contact">-</span></div>
+                            </div>
+                        </div>
+                        <div class="preview-section">
+                            <h4>📋 Terms</h4>
+                            <div class="preview-grid">
+                                <div class="preview-row"><label>Payment:</label><span id="prev-payment">-</span></div>
+                                <div class="preview-row"><label>PI Validity:</label><span id="prev-validity">-</span></div>
+                                <div class="preview-row"><label>Lead Time:</label><span id="prev-lead">-</span></div>
+                                <div class="preview-row"><label>Incoterm:</label><span id="prev-incoterm">-</span></div>
+                                <div class="preview-row"><label>Destination:</label><span id="prev-dest">-</span></div>
+                            </div>
+                        </div>
+                        <div class="preview-section">
+                            <h4>🏦 Bank</h4>
+                            <div class="preview-grid">
+                                <div class="preview-row"><label>Bank:</label><span id="prev-bank-name">-</span></div>
+                                <div class="preview-row"><label>Account:</label><span id="prev-acct-name">-</span></div>
+                                <div class="preview-row"><label>A/C No:</label><span id="prev-acct-no">-</span></div>
+                                <div class="preview-row"><label>SWIFT:</label><span id="prev-swift">-</span></div>
+                                <div class="preview-row"><label>Address:</label><span id="prev-bank-addr">-</span></div>
+                            </div>
+                        </div>
+                        <div class="preview-section">
+                            <h4>🔄 Intermediary</h4>
+                            <div class="preview-grid">
+                                <div class="preview-row"><label>Bank:</label><span id="prev-inter-name">-</span></div>
+                                <div class="preview-row"><label>SWIFT:</label><span id="prev-inter-swift">-</span></div>
+                                <div class="preview-row"><label>Address:</label><span id="prev-inter-addr">-</span></div>
+                            </div>
+                        </div>
+                        <div class="preview-section">
+                            <h4>📦 Products</h4>
+                            <table class="preview-table" id="prev-products"></table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="hideModal('import')">Cancel</button>
+                <button class="btn btn-success" id="import-confirm" style="display:none;" onclick="confirmAIImport()">✅ Import</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="modal-preview"><div class="modal" style="max-width:90vw;width:900px;"><div class="modal-header"><h3>Preview</h3><button class="modal-close" onclick="hideModal('preview')">×</button></div><div class="modal-body" style="background:var(--bg-alt);text-align:center;"><div id="preview-container"></div></div><div class="modal-footer"><button class="btn" onclick="hideModal('preview')">Close</button><button class="btn btn-primary" onclick="hideModal('preview');showShareModal()">📤 Share</button></div></div></div>
+
+    <div class="modal-overlay" id="modal-share"><div class="modal"><div class="modal-header"><h3>📤 Share</h3><button class="modal-close" onclick="hideModal('share')">×</button></div><div class="modal-body"><div class="share-options"><div class="share-option" onclick="downloadImage()"><div class="share-option-icon">💾</div><div class="share-option-text">Download</div></div><div class="share-option" onclick="copyToClipboard()"><div class="share-option-icon">📋</div><div class="share-option-text">Copy</div></div><div class="share-option" onclick="printInvoice()"><div class="share-option-icon">🖨️</div><div class="share-option-text">Print/PDF</div></div><div class="share-option" onclick="exportToExcel()"><div class="share-option-icon">📊</div><div class="share-option-text">Excel</div></div><div class="share-option" onclick="shareApps()"><div class="share-option-icon">📱</div><div class="share-option-text">Share</div></div></div><div id="share-result" style="display:none;"></div></div><div class="modal-footer"><button class="btn" onclick="hideModal('share')">Close</button></div></div></div>
+
+    <script>
+        if(typeof pdfjsLib!=='undefined')pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        
+        let products=JSON.parse(localStorage.getItem('inv_products')||'[]');
+        let customers=JSON.parse(localStorage.getItem('inv_customers')||'[]');
+        let history=JSON.parse(localStorage.getItem('inv_history')||'[]');
+        let settings=JSON.parse(localStorage.getItem('inv_settings')||'{}');
+        let aiResult=null;
+
+        document.addEventListener('DOMContentLoaded',()=>{
+            setDate();loadSettings();renderAll();addProductRow();
+            if(settings.aiProvider)document.getElementById('ai-provider').value=settings.aiProvider;
+            if(settings.aiApiKey)document.getElementById('ai-api-key').value=settings.aiApiKey;
+            
+            // 加载自动备份设置并检查提醒
+            loadAutoBackupSettings();
+            setTimeout(checkBackupReminder, 2000); // 延迟2秒检查，避免干扰页面加载
+        });
+
+        function setDate(){document.getElementById('invoice-date').value=new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});}
+
+        function loadSettings(){
+            if(settings.company){document.getElementById('seller-company').value=settings.company;document.getElementById('my-company').value=settings.company;}
+            if(settings.address){document.getElementById('seller-address').value=settings.address;document.getElementById('my-address').value=settings.address;}
+            if(settings.contact){document.getElementById('seller-contact').value=settings.contact;document.getElementById('my-contact').value=settings.contact;}
+            if(settings.bankName)document.getElementById('bank-name').value=settings.bankName;
+            if(settings.acctName)document.getElementById('acct-name').value=settings.acctName;
+            if(settings.acctNo)document.getElementById('acct-no').value=settings.acctNo;
+            if(settings.swift)document.getElementById('swift-code').value=settings.swift;
+            if(settings.bankAddr)document.getElementById('bank-addr').value=settings.bankAddr;
+            if(settings.interBankName)document.getElementById('inter-bank-name').value=settings.interBankName;
+            if(settings.interSwift)document.getElementById('inter-swift').value=settings.interSwift;
+            if(settings.interAddr)document.getElementById('inter-addr').value=settings.interAddr;
+            updateBankDisplay();
+            if(settings.stamp){document.getElementById('stamp-img').src=settings.stamp;document.getElementById('stamp-img').style.display='block';document.getElementById('stamp-text').style.display='none';document.getElementById('stamp-status').textContent='✅';}
+            if(settings.stampSize) {
+                adjustStampSize(settings.stampSize);
+            } else {
+                adjustStampSize(140); // 默认宽度140px
+            }
+        }
+
+        function saveSettings(){
+            settings.company=document.getElementById('my-company').value.trim();
+            settings.address=document.getElementById('my-address').value.trim();
+            settings.contact=document.getElementById('my-contact').value.trim();
+            settings.bankName=document.getElementById('bank-name').value.trim();
+            settings.acctName=document.getElementById('acct-name').value.trim();
+            settings.acctNo=document.getElementById('acct-no').value.trim();
+            settings.swift=document.getElementById('swift-code').value.trim();
+            settings.bankAddr=document.getElementById('bank-addr').value.trim();
+            settings.interBankName=document.getElementById('inter-bank-name').value.trim();
+            settings.interSwift=document.getElementById('inter-swift').value.trim();
+            settings.interAddr=document.getElementById('inter-addr').value.trim();
+            settings.aiProvider=document.getElementById('ai-provider').value;
+            settings.aiApiKey=document.getElementById('ai-api-key').value;
+            localStorage.setItem('inv_settings',JSON.stringify(settings));
+            document.getElementById('seller-company').value=settings.company;
+            document.getElementById('seller-address').value=settings.address;
+            document.getElementById('seller-contact').value=settings.contact;
+            updateBankDisplay();
+            toast('✅ Saved!');
+        }
+
+        function updateBankDisplay(){
+            document.getElementById('disp-bank-name').textContent=settings.bankName||'-';
+            document.getElementById('disp-acct-name').textContent=settings.acctName||'-';
+            document.getElementById('disp-acct-no').textContent=settings.acctNo||'-';
+            document.getElementById('disp-swift').textContent=settings.swift||'-';
+            document.getElementById('disp-bank-addr').textContent=settings.bankAddr||'-';
+            document.getElementById('disp-inter-name').textContent=settings.interBankName||'-';
+            document.getElementById('disp-inter-swift').textContent=settings.interSwift||'-';
+            document.getElementById('disp-inter-addr').textContent=settings.interAddr||'-';
+        }
+
+        function uploadSettingsStamp(input){
+            const file=input.files[0];if(!file)return;
+            const reader=new FileReader();
+            reader.onload=e=>{
+                settings.stamp=e.target.result;
+                localStorage.setItem('inv_settings',JSON.stringify(settings));
+                document.getElementById('stamp-img').src=e.target.result;
+                document.getElementById('stamp-img').style.display='block';
+                document.getElementById('stamp-text').style.display='none';
+                document.getElementById('stamp-status').textContent='✅';
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function loadStamp(input){
+            const file=input.files[0];if(!file)return;
+            const reader=new FileReader();
+            reader.onload=e=>{
+                settings.stamp=e.target.result;
+                localStorage.setItem('inv_settings',JSON.stringify(settings));
+                document.getElementById('stamp-img').src=e.target.result;
+                document.getElementById('stamp-img').style.display='block';
+                document.getElementById('stamp-text').style.display='none';
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function deleteStamp(){settings.stamp='';localStorage.setItem('inv_settings',JSON.stringify(settings));document.getElementById('stamp-img').style.display='none';document.getElementById('stamp-text').style.display='block';}
+        function adjustWidth(v){document.getElementById('invoice-capture').style.maxWidth=v+'px';document.getElementById('width-value').textContent=v+'px';}
+        function adjustStampSize(v){
+            const width = parseInt(v);
+            const height = Math.round(width * 0.57);
+            document.getElementById('stamp-area').style.width = width + 'px';
+            document.getElementById('stamp-area').style.height = height + 'px';
+            document.getElementById('stamp-size-value').textContent = width + 'px';
+            settings.stampSize = width;
+            localStorage.setItem('inv_settings', JSON.stringify(settings));
+        }
+        function showPanel(name){document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));document.getElementById('panel-'+name).classList.add('active');document.querySelectorAll('.nav-btn,.mobile-nav-btn').forEach(b=>b.classList.remove('active'));event?.target?.closest('button')?.classList.add('active');}
+        function showModal(id){document.getElementById('modal-'+id).classList.add('show');}
+        function hideModal(id){document.getElementById('modal-'+id).classList.remove('show');if(id==='import'){document.getElementById('import-step1').style.display='block';document.getElementById('import-step2').style.display='none';document.getElementById('import-confirm').style.display='none';aiResult=null;}if(id==='share')document.getElementById('share-result').style.display='none';}
+        function showImportModal(){showModal('import');}
+        function showShareModal(){showModal('share');}
+
+        // ==================== AI IMPORT ====================
+        async function handleAIImport(input){
+            const file=input.files[0];if(!file)return;
+            const apiKey=settings.aiApiKey||document.getElementById('ai-api-key').value;
+            const provider=settings.aiProvider||document.getElementById('ai-provider').value;
+            
+            if(!apiKey){toast('⚠️ Please enter API key in Settings');return;}
+            
+            document.getElementById('import-step1').style.display='none';
+            document.getElementById('import-step2').style.display='block';
+            document.getElementById('ai-status').className='ai-status processing';
+            document.getElementById('ai-status').innerHTML='<div class="loading"></div><span>AI is analyzing your document...</span>';
+            document.getElementById('import-preview').style.display='none';
+            document.getElementById('import-confirm').style.display='none';
+            
+            try{
+                let content='';
+                const ext=file.name.split('.').pop().toLowerCase();
+                
+                if(['jpg','jpeg','png'].includes(ext)){
+                    content=await fileToBase64(file);
+                }else if(['xlsx','xls'].includes(ext)){
+                    content=await parseExcelToText(file);
+                }else if(ext==='pdf'){
+                    content=await parsePDFToText(file);
+                }else if(ext==='csv'){
+                    content=await file.text();
+                }
+                
+                const result=await callAI(provider,apiKey,content,['jpg','jpeg','png'].includes(ext)?'image':'text');
+                aiResult=result;
+                showAIResult(result);
+            }catch(err){
+                console.error(err);
+                document.getElementById('ai-status').className='ai-status error';
+                document.getElementById('ai-status').innerHTML='❌ Error: '+err.message;
+            }
+            input.value='';
+        }
+
+        function fileToBase64(file){
+            return new Promise((resolve,reject)=>{
+                const reader=new FileReader();
+                reader.onload=()=>resolve(reader.result.split(',')[1]);
+                reader.onerror=reject;
+                reader.readAsDataURL(file);
+            });
+        }
+
+        async function parseExcelToText(file){
+            return new Promise((resolve,reject)=>{
+                const reader=new FileReader();
+                reader.onload=e=>{
+                    try{
+                        const wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'});
+                        let text='';
+                        wb.SheetNames.forEach(name=>{
+                            const ws=wb.Sheets[name];
+                            text+=XLSX.utils.sheet_to_csv(ws)+'\n\n';
+                        });
+                        resolve(text);
+                    }catch(err){reject(err);}
+                };
+                reader.onerror=reject;
+                reader.readAsArrayBuffer(file);
+            });
+        }
+
+        async function parsePDFToText(file){
+            return new Promise((resolve,reject)=>{
+                const reader=new FileReader();
+                reader.onload=async e=>{
+                    try{
+                        const pdf=await pdfjsLib.getDocument(new Uint8Array(e.target.result)).promise;
+                        let text='';
+                        for(let i=1;i<=pdf.numPages;i++){
+                            const page=await pdf.getPage(i);
+                            const content=await page.getTextContent();
+                            text+=content.items.map(item=>item.str).join(' ')+'\n';
+                        }
+                        resolve(text);
+                    }catch(err){reject(err);}
+                };
+                reader.onerror=reject;
+                reader.readAsArrayBuffer(file);
+            });
+        }
+
+        async function callAI(provider,apiKey,content,contentType){
+            const prompt=`Extract ALL invoice data from this ${contentType}. Return ONLY valid JSON with this exact structure:
+{
+  "invoiceNo": "",
+  "date": "",
+  "seller": {"company": "", "address": "", "contact": ""},
+  "buyer": {"company": "", "address": "", "contact": ""},
+  "products": [{"description": "", "quantity": "", "price": ""}],
+  "terms": {
+    "payment": "",
+    "piValidity": "",
+    "leadTime": "",
+    "incoterm": "",
+    "destination": ""
+  },
+  "bank": {
+    "bankName": "",
+    "accountName": "",
+    "accountNo": "",
+    "swift": "",
+    "address": ""
+  },
+  "intermediaryBank": {
+    "bankName": "",
+    "swift": "",
+    "address": ""
+  }
+}
+Extract ALL information you can find. For products, include description, quantity (with unit like "100 pcs"), and unit price (with currency like "USD 5.00"). Extract payment terms, validity period, lead time, shipping terms (incoterm), destination port. Extract bank details including bank name, account holder name, account number, SWIFT/BIC code, and bank address. If there's an intermediary/correspondent bank, extract that too.`;
+
+            if(provider==='deepseek'){
+                const response=await fetch('https://api.deepseek.com/chat/completions',{
+                    method:'POST',
+                    headers:{'Content-Type':'application/json','Authorization':'Bearer '+apiKey},
+                    body:JSON.stringify({
+                        model:'deepseek-chat',
+                        messages:[
+                            {role:'system',content:'You are an invoice data extractor. Return only valid JSON, no markdown.'},
+                            {role:'user',content:contentType==='image'?[{type:'text',text:prompt},{type:'image_url',image_url:{url:'data:image/jpeg;base64,'+content}}]:prompt+'\n\nDocument content:\n'+content}
+                        ],
+                        temperature:0.1
+                    })
+                });
+                const data=await response.json();
+                if(data.error)throw new Error(data.error.message);
+                return parseAIResponse(data.choices[0].message.content);
+            }else{
+                // Gemini 2.5 Flash
+                const url='https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key='+apiKey;
+                const parts=contentType==='image'?[{text:prompt},{inline_data:{mime_type:'image/jpeg',data:content}}]:[{text:prompt+'\n\nDocument content:\n'+content}];
+                const response=await fetch(url,{
+                    method:'POST',
+                    headers:{'Content-Type':'application/json'},
+                    body:JSON.stringify({contents:[{parts}],generationConfig:{temperature:0.1}})
+                });
+                const data=await response.json();
+                if(data.error)throw new Error(data.error.message);
+                return parseAIResponse(data.candidates[0].content.parts[0].text);
+            }
+        }
+
+        function parseAIResponse(text){
+            // Clean up response - remove markdown code blocks if present
+            let clean=text.replace(/```json\n?/g,'').replace(/```\n?/g,'').trim();
+            try{
+                return JSON.parse(clean);
+            }catch(e){
+                // Try to extract JSON from the response
+                const match=clean.match(/\{[\s\S]*\}/);
+                if(match)return JSON.parse(match[0]);
+                throw new Error('Could not parse AI response');
+            }
+        }
+
+        function showAIResult(result){
+            document.getElementById('ai-status').className='ai-status success';
+            document.getElementById('ai-status').innerHTML='✅ AI analysis complete!';
+            
+            // Seller
+            document.getElementById('prev-seller-company').textContent=result.seller?.company||'-';
+            document.getElementById('prev-seller-address').textContent=result.seller?.address||'-';
+            document.getElementById('prev-seller-contact').textContent=result.seller?.contact||'-';
+            
+            // Buyer
+            document.getElementById('prev-buyer-company').textContent=result.buyer?.company||'-';
+            document.getElementById('prev-buyer-address').textContent=result.buyer?.address||'-';
+            document.getElementById('prev-buyer-contact').textContent=result.buyer?.contact||'-';
+            
+            // Terms
+            document.getElementById('prev-payment').textContent=result.terms?.payment||'-';
+            document.getElementById('prev-validity').textContent=result.terms?.piValidity||'-';
+            document.getElementById('prev-lead').textContent=result.terms?.leadTime||'-';
+            document.getElementById('prev-incoterm').textContent=result.terms?.incoterm||'-';
+            document.getElementById('prev-dest').textContent=result.terms?.destination||'-';
+            
+            // Bank
+            document.getElementById('prev-bank-name').textContent=result.bank?.bankName||'-';
+            document.getElementById('prev-acct-name').textContent=result.bank?.accountName||'-';
+            document.getElementById('prev-acct-no').textContent=result.bank?.accountNo||'-';
+            document.getElementById('prev-swift').textContent=result.bank?.swift||'-';
+            document.getElementById('prev-bank-addr').textContent=result.bank?.address||'-';
+            
+            // Intermediary
+            document.getElementById('prev-inter-name').textContent=result.intermediaryBank?.bankName||'-';
+            document.getElementById('prev-inter-swift').textContent=result.intermediaryBank?.swift||'-';
+            document.getElementById('prev-inter-addr').textContent=result.intermediaryBank?.address||'-';
+            
+            // Products
+            let productsHtml='<tr><th>Description</th><th>Qty</th><th>Price</th></tr>';
+            (result.products||[]).forEach(p=>{
+                productsHtml+=`<tr><td>${p.description||''}</td><td>${p.quantity||''}</td><td>${p.price||''}</td></tr>`;
+            });
+            document.getElementById('prev-products').innerHTML=productsHtml;
+            
+            document.getElementById('import-preview').style.display='block';
+            document.getElementById('import-confirm').style.display='inline-flex';
+        }
+
+        function confirmAIImport(){
+            if(!aiResult)return;
+            
+            // Invoice info
+            if(aiResult.invoiceNo)document.getElementById('invoice-no').value=aiResult.invoiceNo;
+            if(aiResult.date)document.getElementById('invoice-date').value=aiResult.date;
+            
+            // Seller
+            if(aiResult.seller){
+                if(aiResult.seller.company)document.getElementById('seller-company').value=aiResult.seller.company;
+                if(aiResult.seller.address)document.getElementById('seller-address').value=aiResult.seller.address;
+                if(aiResult.seller.contact)document.getElementById('seller-contact').value=aiResult.seller.contact;
+            }
+            
+            // Buyer
+            if(aiResult.buyer){
+                if(aiResult.buyer.company)document.getElementById('buyer-company').value=aiResult.buyer.company;
+                if(aiResult.buyer.address)document.getElementById('buyer-address').value=aiResult.buyer.address;
+                if(aiResult.buyer.contact)document.getElementById('buyer-contact').value=aiResult.buyer.contact;
+                // Auto save customer
+                if(aiResult.buyer.company&&!customers.some(c=>c.company.toLowerCase()===aiResult.buyer.company.toLowerCase())){
+                    customers.push({id:Date.now(),company:aiResult.buyer.company,address:aiResult.buyer.address||'',contact:aiResult.buyer.contact||''});
+                    localStorage.setItem('inv_customers',JSON.stringify(customers));
+                }
+            }
+            
+            // Terms
+            if(aiResult.terms){
+                if(aiResult.terms.payment)document.getElementById('payment-terms').value=aiResult.terms.payment;
+                if(aiResult.terms.piValidity)document.getElementById('pi-validity').value=aiResult.terms.piValidity;
+                if(aiResult.terms.leadTime)document.getElementById('lead-time').value=aiResult.terms.leadTime;
+                if(aiResult.terms.incoterm)document.getElementById('ship-terms').value=aiResult.terms.incoterm;
+                if(aiResult.terms.destination)document.getElementById('destination').value=aiResult.terms.destination;
+            }
+            
+            // Bank - update settings and display
+            if(aiResult.bank){
+                if(aiResult.bank.bankName){settings.bankName=aiResult.bank.bankName;document.getElementById('bank-name').value=aiResult.bank.bankName;}
+                if(aiResult.bank.accountName){settings.acctName=aiResult.bank.accountName;document.getElementById('acct-name').value=aiResult.bank.accountName;}
+                if(aiResult.bank.accountNo){settings.acctNo=aiResult.bank.accountNo;document.getElementById('acct-no').value=aiResult.bank.accountNo;}
+                if(aiResult.bank.swift){settings.swift=aiResult.bank.swift;document.getElementById('swift-code').value=aiResult.bank.swift;}
+                if(aiResult.bank.address){settings.bankAddr=aiResult.bank.address;document.getElementById('bank-addr').value=aiResult.bank.address;}
+            }
+            
+            // Intermediary Bank
+            if(aiResult.intermediaryBank){
+                if(aiResult.intermediaryBank.bankName){settings.interBankName=aiResult.intermediaryBank.bankName;document.getElementById('inter-bank-name').value=aiResult.intermediaryBank.bankName;}
+                if(aiResult.intermediaryBank.swift){settings.interSwift=aiResult.intermediaryBank.swift;document.getElementById('inter-swift').value=aiResult.intermediaryBank.swift;}
+                if(aiResult.intermediaryBank.address){settings.interAddr=aiResult.intermediaryBank.address;document.getElementById('inter-addr').value=aiResult.intermediaryBank.address;}
+            }
+            
+            // Save settings and update display
+            localStorage.setItem('inv_settings',JSON.stringify(settings));
+            updateBankDisplay();
+            
+            // Products
+            if(aiResult.products&&aiResult.products.length){
+                document.getElementById('invoice-products').innerHTML='';
+                aiResult.products.forEach(p=>{
+                    addProductRowWithData(p.description||'',p.quantity||'',p.price||'');
+                    // Auto save product
+                    if(p.description&&!products.some(x=>x.name.toLowerCase()===p.description.toLowerCase())){
+                        products.push({id:Date.now()+Math.random(),name:p.description,unit:'pcs',price:p.price||''});
+                        localStorage.setItem('inv_products',JSON.stringify(products));
+                    }
+                });
+                calcTotals();
+            }
+            
+            hideModal('import');
+            renderAll();
+            toast('✅ Imported successfully!');
+        }
+
+        // ==================== PRODUCTS ====================
+        function addProductRow(){addProductRowWithData('','','');}
+        function addProductRowWithData(desc,qty,price){
+            const tbody=document.getElementById('invoice-products');
+            const tr=document.createElement('tr');
+            tr.innerHTML=`<td class="search-wrapper"><textarea class="p-desc" placeholder="Description" rows="1" oninput="autoResize(this);showProductDropdown(this)" onfocus="showProductDropdown(this)" onblur="autoSaveProduct(this)">${desc}</textarea><div class="search-dropdown"></div></td><td><input type="text" class="p-qty" value="${qty}" placeholder="Qty" onblur="formatQty(this)"></td><td><input type="text" class="p-price" value="${price}" placeholder="Price" onblur="formatPrice(this);autoSaveProduct(this)"></td><td class="amount-cell">USD 0.00</td><td class="action-cell"><button class="remove-btn" onclick="removeRow(this)">×</button></td>`;
+            tbody.appendChild(tr);
+            tr.querySelectorAll('input,textarea').forEach(i=>i.addEventListener('input',calcTotals));
+            if(desc)autoResize(tr.querySelector('.p-desc'));
+            calcTotals();
+        }
+        
+        // 获取当前货币单位
+        function getCurrency() {
+            // 从已有产品价格中获取货币单位，默认USD
+            const prices = document.querySelectorAll('.p-price');
+            for(let p of prices) {
+                const match = p.value.match(/^([A-Z]{3})\s/);
+                if(match) return match[1];
+            }
+            return 'USD';
+        }
+        
+        // 格式化数量
+        function formatQty(input) {
+            let val = input.value.trim();
+            if(!val) return;
+            
+            // 提取数字
+            const num = parseFloat(val.replace(/[^\d.]/g, ''));
+            if(isNaN(num)) return;
+            
+            // 如果已包含单位则保留，否则使用默认单位
+            let unit = 'pcs';
+            const unitMatch = val.match(/[a-zA-Z]+/);
+            if(unitMatch) {
+                unit = unitMatch[0].toLowerCase();
+            } else {
+                // 检查同行是否有原单位信息（从产品库获取）
+                const tr = input.closest('tr');
+                const desc = tr?.querySelector('.p-desc')?.value?.trim();
+                if(desc) {
+                    const prod = products.find(p => p.name.toLowerCase() === desc.toLowerCase());
+                    if(prod && prod.unit) unit = prod.unit;
+                }
+            }
+            
+            input.value = num + ' ' + unit;
+            calcTotals();
+        }
+        
+        // 格式化价格
+        function formatPrice(input) {
+            let val = input.value.trim();
+            if(!val) return;
+            
+            // 提取数字
+            const num = parseFloat(val.replace(/[^\d.]/g, ''));
+            if(isNaN(num)) return;
+            
+            // 获取货币单位
+            const currency = getCurrency();
+            
+            input.value = currency + ' ' + num.toFixed(2);
+            calcTotals();
+        }
+        
+        // 格式化运费
+        function formatShipping() {
+            const input = document.getElementById('shipping');
+            let val = input.value.trim();
+            if(!val) return;
+            
+            // 提取数字
+            const num = parseFloat(val.replace(/[^\d.]/g, ''));
+            if(isNaN(num)) return;
+            
+            // 获取货币单位
+            const currency = getCurrency();
+            
+            input.value = currency + ' ' + num.toFixed(2);
+            calcTotals();
+        }
+        
+        // 导出所有数据到JSON文件
+        function exportAllData(silent = false) {
+            const data = {
+                exportDate: new Date().toISOString(),
+                version: '8',
+                products: products,
+                customers: customers,
+                history: history,
+                settings: settings
+            };
+            
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'invoice-pro-backup-' + new Date().toISOString().slice(0,10) + '.json';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            // 记录最后备份时间
+            localStorage.setItem('inv_last_backup', new Date().toISOString());
+            
+            if (!silent) {
+                const status = document.getElementById('backup-status');
+                if (status) {
+                    status.innerHTML = '<div class="sync-status success"><span>✅ Data exported successfully!</span></div>';
+                    setTimeout(() => status.innerHTML = '', 3000);
+                }
+            }
+            
+            return true;
+        }
+        
+        // 保存自动备份设置
+        function saveAutoBackupSettings() {
+            const reminder = document.getElementById('auto-backup-reminder')?.checked || false;
+            const days = parseInt(document.getElementById('backup-reminder-days')?.value) || 7;
+            const autoOnSave = document.getElementById('auto-backup-on-save')?.checked || false;
+            
+            const backupSettings = { reminder, days, autoOnSave };
+            localStorage.setItem('inv_backup_settings', JSON.stringify(backupSettings));
+        }
+        
+        // 加载自动备份设置
+        function loadAutoBackupSettings() {
+            try {
+                const saved = JSON.parse(localStorage.getItem('inv_backup_settings') || '{}');
+                
+                const reminderEl = document.getElementById('auto-backup-reminder');
+                const daysEl = document.getElementById('backup-reminder-days');
+                const autoOnSaveEl = document.getElementById('auto-backup-on-save');
+                
+                if (reminderEl) reminderEl.checked = saved.reminder || false;
+                if (daysEl) daysEl.value = saved.days || '7';
+                if (autoOnSaveEl) autoOnSaveEl.checked = saved.autoOnSave || false;
+            } catch(e) {}
+        }
+        
+        // 检查是否需要备份提醒
+        function checkBackupReminder() {
+            try {
+                const backupSettings = JSON.parse(localStorage.getItem('inv_backup_settings') || '{}');
+                if (!backupSettings.reminder) return;
+                
+                const lastBackup = localStorage.getItem('inv_last_backup');
+                const days = backupSettings.days || 7;
+                
+                if (!lastBackup) {
+                    // 从未备份过
+                    showBackupReminder('You have never backed up your data!');
+                    return;
+                }
+                
+                const lastDate = new Date(lastBackup);
+                const now = new Date();
+                const diffDays = Math.floor((now - lastDate) / (1000 * 60 * 60 * 24));
+                
+                if (diffDays >= days) {
+                    showBackupReminder(`Last backup was ${diffDays} days ago`);
+                }
+            } catch(e) {}
+        }
+        
+        // 显示备份提醒
+        function showBackupReminder(message) {
+            // 创建提醒弹窗
+            const modal = document.createElement('div');
+            modal.id = 'backup-reminder-modal';
+            modal.style.cssText = `
+                position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+                background: rgba(0,0,0,0.5); z-index: 9999;
+                display: flex; align-items: center; justify-content: center;
+            `;
+            modal.innerHTML = `
+                <div style="background: white; border-radius: 12px; padding: 24px; max-width: 400px; margin: 20px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.2);">
+                    <div style="font-size: 48px; margin-bottom: 16px;">⚠️</div>
+                    <h3 style="margin-bottom: 8px; color: #ea580c;">Backup Reminder</h3>
+                    <p style="color: #64748b; margin-bottom: 20px;">${message}<br><br>Back up now to prevent data loss!</p>
+                    <div style="display: flex; gap: 10px; justify-content: center;">
+                        <button onclick="exportAllData();document.getElementById('backup-reminder-modal').remove();" 
+                                style="padding: 10px 20px; background: #16a34a; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500;">
+                            📥 Backup Now
+                        </button>
+                        <button onclick="document.getElementById('backup-reminder-modal').remove();" 
+                                style="padding: 10px 20px; background: #e2e8f0; color: #64748b; border: none; border-radius: 6px; cursor: pointer;">
+                            Later
+                        </button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+        
+        // 从JSON文件导入数据
+        function importAllData(input) {
+            const file = input.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    
+                    // 验证数据格式
+                    if (!data.products && !data.customers && !data.history && !data.settings) {
+                        throw new Error('Invalid backup file format');
+                    }
+                    
+                    // 显示确认对话框
+                    const productCount = data.products?.length || 0;
+                    const customerCount = data.customers?.length || 0;
+                    const historyCount = data.history?.length || 0;
+                    
+                    const confirmMsg = `Import data from backup?\n\n` +
+                        `📦 Products: ${productCount}\n` +
+                        `👥 Customers: ${customerCount}\n` +
+                        `📄 Invoices: ${historyCount}\n\n` +
+                        `Choose import mode:\n` +
+                        `OK = Merge with existing data\n` +
+                        `Cancel = Cancel import`;
+                    
+                    if (!confirm(confirmMsg)) {
+                        input.value = '';
+                        return;
+                    }
+                    
+                    // 智能合并数据
+                    let addedProducts = 0, addedCustomers = 0, addedHistory = 0;
+                    
+                    // 合并产品
+                    if (data.products) {
+                        data.products.forEach(p => {
+                            const exists = products.some(x => x.name.toLowerCase() === p.name.toLowerCase());
+                            if (!exists) {
+                                products.push({ ...p, id: Date.now() + Math.random() });
+                                addedProducts++;
+                            }
+                        });
+                        localStorage.setItem('inv_products', JSON.stringify(products));
+                    }
+                    
+                    // 合并客户
+                    if (data.customers) {
+                        data.customers.forEach(c => {
+                            const exists = customers.some(x => x.company.toLowerCase() === c.company.toLowerCase());
+                            if (!exists) {
+                                customers.push({ ...c, id: Date.now() + Math.random() });
+                                addedCustomers++;
+                            }
+                        });
+                        localStorage.setItem('inv_customers', JSON.stringify(customers));
+                    }
+                    
+                    // 合并发票历史
+                    if (data.history) {
+                        data.history.forEach(h => {
+                            const exists = history.some(x => x.invoiceNo === h.invoiceNo);
+                            if (!exists) {
+                                history.push(h);
+                                addedHistory++;
+                            }
+                        });
+                        history.sort((a, b) => new Date(b.date) - new Date(a.date));
+                        history = history.slice(0, 100);
+                        localStorage.setItem('inv_history', JSON.stringify(history));
+                    }
+                    
+                    // 导入设置（可选覆盖）
+                    if (data.settings) {
+                        const importSettings = confirm('Also import settings (company info, bank details, stamp)?\n\nOK = Yes, import settings\nCancel = Keep current settings');
+                        if (importSettings) {
+                            settings = { ...settings, ...data.settings };
+                            localStorage.setItem('inv_settings', JSON.stringify(settings));
+                        }
+                    }
+                    
+                    renderAll();
+                    loadSettings();
+                    
+                    const status = document.getElementById('backup-status');
+                    status.innerHTML = `<div class="sync-status success"><span>✅ Imported: +${addedProducts} products, +${addedCustomers} customers, +${addedHistory} invoices</span></div>`;
+                    setTimeout(() => status.innerHTML = '', 5000);
+                    
+                    toast('✅ Data imported successfully!');
+                    
+                } catch (err) {
+                    const status = document.getElementById('backup-status');
+                    status.innerHTML = `<div class="sync-status" style="background:#fecaca;color:#dc2626;"><span>❌ Import failed: ${err.message}</span></div>`;
+                    setTimeout(() => status.innerHTML = '', 5000);
+                }
+            };
+            reader.readAsText(file);
+            input.value = '';
+        }
+        
+        // 自动保存产品到产品库
+        function autoSaveProduct(input) {
+            const tr = input.closest('tr');
+            if (!tr) return;
+            
+            const desc = tr.querySelector('.p-desc')?.value?.trim();
+            const price = tr.querySelector('.p-price')?.value?.trim();
+            
+            // 如果产品名称为空，不保存
+            if (!desc) return;
+            
+            // 检查是否已存在（忽略大小写）
+            const existingIndex = products.findIndex(p => p.name.toLowerCase() === desc.toLowerCase());
+            
+            if (existingIndex >= 0) {
+                // 如果存在且价格有变化，更新价格
+                if (price && price !== products[existingIndex].price) {
+                    products[existingIndex].price = price;
+                    localStorage.setItem('inv_products', JSON.stringify(products));
+                    renderAll();
+                }
+            } else {
+                // 新产品，添加到库
+                products.push({
+                    id: Date.now() + Math.random(),
+                    name: desc,
+                    unit: 'pcs',
+                    price: price || ''
+                });
+                localStorage.setItem('inv_products', JSON.stringify(products));
+                renderAll();
+            }
+        }
+        function autoResize(ta){ta.style.height='auto';ta.style.height=Math.max(40,ta.scrollHeight)+'px';}
+        function removeRow(btn){const tbody=document.getElementById('invoice-products');if(tbody.children.length>1){btn.closest('tr').remove();calcTotals();}}
+        function calcTotals(){
+            let subtotal=0;
+            const currency = getCurrency();
+            document.querySelectorAll('#invoice-products tr').forEach(tr=>{
+                const qty=parseFloat((tr.querySelector('.p-qty')?.value||'').match(/[\d.]+/)?.[0]||0);
+                const price=parseFloat((tr.querySelector('.p-price')?.value||'').match(/[\d.]+/)?.[0]||0);
+                const amount=qty*price;
+                subtotal+=amount;
+                const cell=tr.querySelector('.amount-cell');
+                if(cell)cell.textContent=currency+' '+amount.toFixed(2);
+            });
+            const shipping=parseFloat((document.getElementById('shipping').value||'').match(/[\d.]+/)?.[0]||0);
+            document.getElementById('subtotal').textContent=currency+' '+subtotal.toFixed(2);
+            document.getElementById('total').textContent=currency+' '+(subtotal+shipping).toFixed(2);
+        }
+        function showProductDropdown(input){
+            const q=(input.value||'').toLowerCase();
+            const dd=input.parentElement.querySelector('.search-dropdown');
+            document.querySelectorAll('.search-dropdown').forEach(d=>{if(d!==dd)d.classList.remove('show');});
+            const matches=products.filter(p=>p.name.toLowerCase().includes(q)||!q).slice(0,5);
+            if(!matches.length){dd.innerHTML='<div style="padding:10px;text-align:center;color:var(--text-muted);">No matches</div>';}
+            else{dd.innerHTML=matches.map(p=>`<div class="search-dropdown-item" onclick="selectProduct(${p.id},this)"><div class="item-name">${p.name}</div><div class="item-detail">${p.price||'-'}</div></div>`).join('');}
+            dd.classList.add('show');
+        }
+        function selectProduct(id,el){
+            const p=products.find(x=>x.id===id);
+            if(!p)return;
+            const tr=el.closest('tr');
+            const ta=tr.querySelector('.p-desc');
+            ta.value=p.name;
+            autoResize(ta);
+            tr.querySelector('.p-qty').value='1 '+p.unit;
+            // 确保价格有货币单位
+            let price = p.price || '';
+            if(price && !price.match(/^[A-Z]{3}\s/)) {
+                const num = parseFloat(price.replace(/[^\d.]/g, ''));
+                if(!isNaN(num)) {
+                    price = getCurrency() + ' ' + num.toFixed(2);
+                }
+            }
+            tr.querySelector('.p-price').value=price;
+            el.closest('.search-dropdown').classList.remove('show');
+            calcTotals();
+        }
+        function saveProduct(){
+            const name=document.getElementById('new-product-name').value.trim();
+            if(!name)return toast('Name required');
+            
+            // 格式化价格
+            let price = document.getElementById('new-product-price').value.trim();
+            if(price) {
+                const num = parseFloat(price.replace(/[^\d.]/g, ''));
+                if(!isNaN(num)) {
+                    price = getCurrency() + ' ' + num.toFixed(2);
+                }
+            }
+            
+            products.push({
+                id:Date.now(),
+                name,
+                unit:document.getElementById('new-product-unit').value.trim()||'pcs',
+                price: price
+            });
+            localStorage.setItem('inv_products',JSON.stringify(products));
+            hideModal('product');
+            ['new-product-name','new-product-unit','new-product-price'].forEach(id=>document.getElementById(id).value='');
+            document.getElementById('new-product-unit').value='pcs';
+            renderAll();
+            toast('✅ Added!');
+        }
+        function deleteProduct(id){if(!confirm('Delete?'))return;products=products.filter(p=>p.id!==id);localStorage.setItem('inv_products',JSON.stringify(products));renderAll();}
+
+        // ==================== CUSTOMERS ====================
+        function showCustomerDropdown(input){
+            const q=input.value.toLowerCase();
+            const dd=document.getElementById('buyer-dropdown');
+            const matches=customers.filter(c=>c.company.toLowerCase().includes(q)||!q).slice(0,5);
+            if(!matches.length){dd.innerHTML='<div style="padding:10px;text-align:center;color:var(--text-muted);">No matches</div>';}
+            else{dd.innerHTML=matches.map(c=>`<div class="search-dropdown-item" onclick="selectCustomer(${c.id})"><div class="item-name">${c.company}</div><div class="item-detail">${c.address||'-'}</div></div>`).join('');}
+            dd.classList.add('show');
+        }
+        function selectCustomer(id){const c=customers.find(x=>x.id===id);if(!c)return;document.getElementById('buyer-company').value=c.company;document.getElementById('buyer-address').value=c.address;document.getElementById('buyer-contact').value=c.contact;document.getElementById('buyer-dropdown').classList.remove('show');}
+        
+        // 自动保存客户到客户库
+        function autoSaveCustomer() {
+            const company = document.getElementById('buyer-company')?.value?.trim();
+            const address = document.getElementById('buyer-address')?.value?.trim();
+            const contact = document.getElementById('buyer-contact')?.value?.trim();
+            
+            // 如果公司名为空，不保存
+            if (!company) return;
+            
+            // 检查是否已存在（忽略大小写）
+            const existingIndex = customers.findIndex(c => c.company.toLowerCase() === company.toLowerCase());
+            
+            if (existingIndex >= 0) {
+                // 如果存在，更新地址和联系方式（如果有新值）
+                if (address && address !== customers[existingIndex].address) {
+                    customers[existingIndex].address = address;
+                }
+                if (contact && contact !== customers[existingIndex].contact) {
+                    customers[existingIndex].contact = contact;
+                }
+            } else {
+                // 新客户，添加到库
+                customers.push({
+                    id: Date.now(),
+                    company: company,
+                    address: address || '',
+                    contact: contact || ''
+                });
+            }
+            
+            localStorage.setItem('inv_customers', JSON.stringify(customers));
+            renderAll();
+        }
+        function saveCustomer(){const company=document.getElementById('new-customer-company').value.trim();if(!company)return toast('Company required');customers.push({id:Date.now(),company,address:document.getElementById('new-customer-address').value.trim(),contact:document.getElementById('new-customer-contact').value.trim()});localStorage.setItem('inv_customers',JSON.stringify(customers));hideModal('customer');['new-customer-company','new-customer-address','new-customer-contact'].forEach(id=>document.getElementById(id).value='');renderAll();toast('✅ Added!');}
+        function deleteCustomer(id){if(!confirm('Delete?'))return;customers=customers.filter(c=>c.id!==id);localStorage.setItem('inv_customers',JSON.stringify(customers));renderAll();}
+
+        // ==================== HISTORY ====================
+        function clearInvoice(){if(!confirm('Clear?'))return;['buyer-company','buyer-address','buyer-contact','shipping','payment-terms','lead-time','ship-terms','destination'].forEach(id=>document.getElementById(id).value='');document.getElementById('invoice-products').innerHTML='';addProductRow();calcTotals();}
+        function saveToHistory(){
+            const items=[];
+            document.querySelectorAll('#invoice-products tr').forEach(tr=>{items.push({desc:tr.querySelector('.p-desc')?.value||'',qty:tr.querySelector('.p-qty')?.value||'',price:tr.querySelector('.p-price')?.value||''});});
+            history.unshift({id:Date.now(),date:new Date().toISOString(),invoiceNo:document.getElementById('invoice-no').value,seller:{company:document.getElementById('seller-company').value,address:document.getElementById('seller-address').value,contact:document.getElementById('seller-contact').value},buyer:document.getElementById('buyer-company').value||'Unknown',buyerAddress:document.getElementById('buyer-address').value,buyerContact:document.getElementById('buyer-contact').value,items,total:document.getElementById('total').textContent});
+            if(history.length>50)history=history.slice(0,50);
+            localStorage.setItem('inv_history',JSON.stringify(history));
+            renderAll();toast('✅ Saved!');
+            const no=document.getElementById('invoice-no'),m=no.value.match(/(\d+)$/);
+            if(m)no.value=no.value.replace(/\d+$/,String(parseInt(m[1])+1).padStart(m[1].length,'0'));
+            
+            // 自动备份检查
+            try {
+                const backupSettings = JSON.parse(localStorage.getItem('inv_backup_settings') || '{}');
+                if (backupSettings.autoOnSave) {
+                    setTimeout(() => exportAllData(true), 500);
+                    toast('📥 Auto backup downloaded!');
+                }
+            } catch(e) {}
+        }
+        function loadFromHistory(id){
+            const r=history.find(h=>h.id===id);if(!r)return;
+            document.getElementById('invoice-no').value=r.invoiceNo;
+            if(r.seller){document.getElementById('seller-company').value=r.seller.company||'';document.getElementById('seller-address').value=r.seller.address||'';document.getElementById('seller-contact').value=r.seller.contact||'';}
+            document.getElementById('buyer-company').value=r.buyer||'';
+            document.getElementById('buyer-address').value=r.buyerAddress||'';
+            document.getElementById('buyer-contact').value=r.buyerContact||'';
+            document.getElementById('invoice-products').innerHTML='';
+            (r.items||[]).forEach(i=>addProductRowWithData(i.desc,i.qty,i.price));
+            if(!document.getElementById('invoice-products').children.length)addProductRow();
+            calcTotals();showPanel('invoice');toast('✅ Loaded!');
+        }
+        function deleteHistory(id){if(!confirm('Delete?'))return;history=history.filter(h=>h.id!==id);localStorage.setItem('inv_history',JSON.stringify(history));renderAll();}
+        function clearHistory(){if(!confirm('Clear all?'))return;history=[];localStorage.setItem('inv_history','[]');renderAll();}
+
+        // ==================== SHARE ====================
+        async function generateCanvas(){
+            const el = document.getElementById('invoice-capture');
+            const printWidth = 800;
+
+            // 创建一个克隆用于截图
+            const clone = el.cloneNode(true);
+            clone.id = 'invoice-capture-clone';
+            clone.style.position = 'absolute';
+            clone.style.left = '50%';
+            clone.style.transform = 'translateX(-50%)';
+            clone.style.top = '0';
+            clone.style.width = printWidth + 'px';
+            clone.style.maxWidth = printWidth + 'px';
+            clone.style.overflow = 'visible';
+            clone.style.height = 'auto';
+            clone.style.maxHeight = 'none';
+            clone.style.zIndex = '-1';
+            clone.style.margin = '0 auto';
+            
+            // 隐藏编辑元素
+            clone.querySelectorAll('.add-row-area,.action-cell,.search-dropdown,.stamp-delete').forEach(e => e.remove());
+            
+            // 设置双列布局
+            const partiesGrid = clone.querySelector('.parties-grid');
+            const bottomSection = clone.querySelector('.bottom-section');
+            if(partiesGrid) partiesGrid.style.gridTemplateColumns = '1fr 1fr';
+            if(bottomSection) bottomSection.style.gridTemplateColumns = '1fr 1fr';
+            
+            // 去掉stamp的虚线边框和背景
+            const stampArea = clone.querySelector('.stamp-area');
+            if(stampArea) {
+                stampArea.style.border = 'none';
+                stampArea.style.background = 'transparent';
+                stampArea.style.borderRadius = '0';
+                
+                const stampImg = stampArea.querySelector('img');
+                const stampText = stampArea.querySelector('.stamp-placeholder');
+                const deleteBtn = stampArea.querySelector('.stamp-delete');
+                
+                // 隐藏删除按钮
+                if(deleteBtn) deleteBtn.style.display = 'none';
+                
+                // 检查是否有上传的图片（检查原始元素的状态）
+                const originalStampImg = document.querySelector('#stamp-area img');
+                const hasStamp = originalStampImg && originalStampImg.style.display !== 'none' && originalStampImg.src && originalStampImg.src.startsWith('data:');
+                
+                if(hasStamp) {
+                    // 有图片，隐藏placeholder文字，显示图片
+                    if(stampText) stampText.style.display = 'none';
+                    if(stampImg) {
+                        stampImg.style.display = 'block';
+                        stampImg.src = originalStampImg.src;
+                    }
+                } else {
+                    // 没有上传stamp时，隐藏整个stamp区域
+                    stampArea.style.visibility = 'hidden';
+                }
+            }
+            
+            // 将所有 input 和 textarea 替换为 div
+            clone.querySelectorAll('input, textarea').forEach(input => {
+                const div = document.createElement('div');
+                div.textContent = input.value || input.placeholder || '';
+                
+                // 获取父元素判断位置
+                const isInProductTable = input.closest('.products-table');
+                const isInTotalsTable = input.closest('.totals-table');
+                const isInInfoRow = input.closest('.info-row');
+                
+                div.style.cssText = `
+                    font-family: inherit;
+                    font-size: ${getComputedStyle(input).fontSize};
+                    font-weight: ${getComputedStyle(input).fontWeight};
+                    color: ${input.value ? '#1e293b' : '#94a3b8'};
+                    min-height: 20px;
+                    white-space: pre-wrap;
+                    word-wrap: break-word;
+                    overflow-wrap: break-word;
+                    line-height: 1.4;
+                `;
+                
+                // 产品表格中的内容需要padding
+                if(isInProductTable) {
+                    div.style.padding = '10px 12px';
+                } else if(isInTotalsTable) {
+                    div.style.textAlign = 'right';
+                    div.style.fontFamily = 'monospace';
+                    div.style.padding = '0';
+                } else if(isInInfoRow) {
+                    div.style.padding = '2px 0';
+                    div.style.borderBottom = '1px dashed #e2e8f0';
+                } else {
+                    div.style.padding = '6px 0';
+                    div.style.borderBottom = '1px solid #e2e8f0';
+                }
+                
+                // 特殊处理某些元素
+                if(input.id === 'invoice-no' || input.id === 'invoice-date') {
+                    div.style.color = 'white';
+                    div.style.textAlign = 'right';
+                    div.style.border = 'none';
+                    div.style.background = 'transparent';
+                    div.style.padding = '6px 10px';
+                }
+                if(input.classList.contains('company-input')) {
+                    div.style.fontWeight = '600';
+                    div.style.fontSize = '0.95rem';
+                }
+                
+                input.parentNode.replaceChild(div, input);
+            });
+            
+            // 处理 select 元素
+            clone.querySelectorAll('select').forEach(select => {
+                const div = document.createElement('div');
+                div.textContent = select.options[select.selectedIndex]?.text || '';
+                div.style.cssText = `
+                    font-size: 1.25rem;
+                    font-weight: 700;
+                    color: white;
+                `;
+                select.parentNode.replaceChild(div, select);
+            });
+            
+            document.body.appendChild(clone);
+            
+            // 等待渲染
+            await new Promise(r => setTimeout(r, 300));
+            
+            const scrollHeight = Math.max(clone.scrollHeight, clone.offsetHeight);
+            
+            try {
+                const canvas = await html2canvas(clone, {
+                    scale: 2,
+                    backgroundColor: '#ffffff',
+                    useCORS: true,
+                    logging: false,
+                    width: printWidth,
+                    height: scrollHeight,
+                    windowWidth: printWidth,
+                    windowHeight: scrollHeight,
+                    x: 0,
+                    y: 0,
+                    scrollX: 0,
+                    scrollY: 0
+                });
+                return canvas;
+            } finally {
+                document.body.removeChild(clone);
+            }
+        }
+        async function previewInvoice(){
+            toast('⏳ Generating...');
+            try{
+                const canvas=await generateCanvas();
+                const container = document.getElementById('preview-container');
+                container.innerHTML='<img src="'+canvas.toDataURL('image/png')+'" style="max-width:100%;height:auto;border-radius:8px;box-shadow:0 2px 12px rgba(0,0,0,0.1);">';
+                showModal('preview');
+            }catch(e){toast('❌ '+e.message);}
+        }
+        async function downloadImage(){
+            const result=document.getElementById('share-result');
+            result.className='share-result info';result.innerHTML='<div class="loading"></div> Generating...';result.style.display='block';
+            try{const canvas=await generateCanvas();const link=document.createElement('a');link.download='Invoice_'+document.getElementById('invoice-no').value.replace(/[^A-Za-z0-9]/g,'_')+'.png';link.href=canvas.toDataURL('image/png');link.click();result.className='share-result success';result.innerHTML='✅ Downloaded!';}
+            catch(e){result.className='share-result warning';result.innerHTML='❌ '+e.message;}
+        }
+        async function copyToClipboard(){
+            const result=document.getElementById('share-result');
+            result.className='share-result info';result.innerHTML='<div class="loading"></div> Copying...';result.style.display='block';
+            try{const canvas=await generateCanvas();const blob=await new Promise(r=>canvas.toBlob(r,'image/png'));await navigator.clipboard.write([new ClipboardItem({'image/png':blob})]);result.className='share-result success';result.innerHTML='✅ Copied! Paste in any app.';}
+            catch(e){result.className='share-result warning';result.innerHTML='⚠️ Copy not supported. Use Download.';}
+        }
+        async function printInvoice(){
+            const result=document.getElementById('share-result');
+            result.className='share-result info';result.innerHTML='<div class="loading"></div> Preparing...';result.style.display='block';
+            try{
+                const canvas=await generateCanvas();
+                const imgData = canvas.toDataURL('image/png');
+                const imgWidth = canvas.width;
+                const imgHeight = canvas.height;
+                
+                const win=window.open('','_blank','width=900,height=700');
+                if(!win){result.className='share-result warning';result.innerHTML='⚠️ Popup blocked';return;}
+                win.document.write(`<!DOCTYPE html>
+<html>
+<head>
+    <title>Invoice</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { 
+            width: 100%;
+            height: 100%;
+        }
+        body { 
+            display: flex; 
+            justify-content: center; 
+            align-items: flex-start;
+            padding: 10px;
+            background: #f5f5f5;
+        }
+        img { 
+            max-width: 100%; 
+            height: auto; 
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        @media print {
+            html, body {
+                width: 210mm;
+                height: auto;
+                background: white;
+                padding: 0;
+                margin: 0;
+            }
+            body {
+                display: flex;
+                justify-content: center;
+                align-items: flex-start;
+            }
+            img {
+                box-shadow: none;
+                width: auto;
+                max-width: 800px;
+                height: auto;
+                max-height: none;
+                page-break-inside: avoid;
+                page-break-after: avoid;
+                page-break-before: avoid;
+                margin: 0 auto;
+            }
+            @page {
+                margin: 5mm;
+                size: A4 portrait;
+            }
+        }
+    </style>
+</head>
+<body>
+    <img src="${imgData}" onload="setTimeout(()=>{window.print();},500);">
+</body>
+</html>`);
+                win.document.close();
+                result.className='share-result success';result.innerHTML='✅ Print window opened!';
+            }catch(e){result.className='share-result warning';result.innerHTML='❌ '+e.message;}
+        }
+        async function shareApps(){
+            const result=document.getElementById('share-result');
+            result.className='share-result info';result.innerHTML='<div class="loading"></div> Preparing...';result.style.display='block';
+            try{const canvas=await generateCanvas();const blob=await new Promise(r=>canvas.toBlob(r,'image/png'));const file=new File([blob],'Invoice.png',{type:'image/png'});if(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file]});result.className='share-result success';result.innerHTML='✅ Shared!';}else{result.className='share-result warning';result.innerHTML='⚠️ Not available. Use Download instead.';}}
+            catch(e){if(e.name!=='AbortError'){result.className='share-result warning';result.innerHTML='⚠️ '+e.message;}}
+        }
+        
+        // 导出Excel（完全匹配PDF设计）
+        // 导出Excel（完美版 - 大列宽大字体）
+        // 导出Excel（国际标准版 - 7列布局）
+        async function exportToExcel() {
+            const result = document.getElementById('share-result');
+            result.className = 'share-result info';
+            result.innerHTML = '<div class="loading"></div> Generating Excel...';
+            result.style.display = 'block';
+
+            try {
+                const workbook = new ExcelJS.Workbook();
+                const ws = workbook.addWorksheet('Invoice', {
+                    pageSetup: {
+                        paperSize: 9,
+                        orientation: 'portrait',
+                        fitToPage: true,
+                        fitToWidth: 1,
+                        margins: { left: 0.5, right: 0.5, top: 0.5, bottom: 0.5, header: 0.3, footer: 0.3 }
+                    }
+                });
+
+                // 匹配PDF配色方案
+                const PRIMARY = 'FF1E40AF';      // 主蓝色 (对应 --primary)
+                const PRIMARY_LIGHT = 'FF3B82F6'; // 浅蓝色 (对应 --primary-light)
+                const DARK = 'FF1E293B';          // 深色文字 (对应 --text)
+                const BORDER = 'FFE2E8F0';        // 边框色 (对应 --border)
+                const LIGHT_BG = 'FFF8FAFC';      // 浅背景 (对应 --bg)
+                const ALT_BG = 'FFF1F5F9';        // 交替背景 (对应 --bg-alt)
+
+                // ★ 优化列宽 - 确保内容完整显示 ★
+                ws.getColumn(1).width = 14;  // A - Terms 标签
+                ws.getColumn(2).width = 35;  // B - Terms 值（超宽）
+                ws.getColumn(3).width = 3;   // C - 分隔列
+                ws.getColumn(4).width = 3;   // D - 分隔列
+                ws.getColumn(5).width = 14;  // E - Bank 标签
+                ws.getColumn(6).width = 18;  // F - Bank 值/单价
+                ws.getColumn(7).width = 20;  // G - 金额
+                
+                // 获取数据
+                const invoiceType = document.querySelector('#invoice-type').selectedOptions[0].text.toUpperCase();
+                const invoiceNo = document.getElementById('invoice-no').value || '';
+                const invoiceDate = document.getElementById('invoice-date').value || '';
+                
+                const sellerCompany = document.getElementById('seller-company').value || '';
+                const sellerAddress = document.getElementById('seller-address').value || '';
+                const sellerContact = document.getElementById('seller-contact').value || '';
+                
+                const buyerCompany = document.getElementById('buyer-company').value || '';
+                const buyerAddress = document.getElementById('buyer-address').value || '';
+                const buyerContact = document.getElementById('buyer-contact').value || '';
+                
+                const productList = [];
+                document.querySelectorAll('#invoice-products tr').forEach(tr => {
+                    const desc = tr.querySelector('.p-desc')?.value || '';
+                    const qty = tr.querySelector('.p-qty')?.value || '';
+                    const price = tr.querySelector('.p-price')?.value || '';
+                    const amount = tr.querySelector('.amount-cell')?.textContent || '';
+                    if (desc.trim()) productList.push({ desc, qty, price, amount });
+                });
+                
+                const subtotal = document.getElementById('subtotal').textContent || 'USD 0.00';
+                const shipping = document.getElementById('shipping').value || 'USD 0.00';
+                const total = document.getElementById('total').textContent || 'USD 0.00';
+                
+                const payment = document.getElementById('payment-terms')?.value || '';
+                const piValidity = document.getElementById('pi-validity')?.value || '';
+                const leadTime = document.getElementById('lead-time')?.value || '';
+                const incoterm = document.getElementById('ship-terms')?.value || '';
+                const destination = document.getElementById('destination')?.value || '';
+                
+                const bankName = document.getElementById('disp-bank-name')?.textContent || '-';
+                const accountName = document.getElementById('disp-acct-name')?.textContent || '-';
+                const accountNo = document.getElementById('disp-acct-no')?.textContent || '-';
+                const swiftCode = document.getElementById('disp-swift')?.textContent || '-';
+                const bankAddress = document.getElementById('disp-bank-addr')?.textContent || '-';
+                
+                const intBankName = document.getElementById('disp-inter-name')?.textContent || '-';
+                const intSwift = document.getElementById('disp-inter-swift')?.textContent || '-';
+                const intAddress = document.getElementById('disp-inter-addr')?.textContent || '-';
+                
+                let row = 1;
+
+                // ===== 标题区域（右上角显示发票号和日期） =====
+                // 第1行：标题在左侧，发票号在右侧
+                ws.mergeCells('A1:D1');
+                ws.getCell('A1').value = invoiceType;
+                ws.getCell('A1').font = { name: 'Arial', size: 28, bold: true, color: { argb: PRIMARY } };
+                ws.getCell('A1').alignment = { horizontal: 'left', vertical: 'center' };
+
+                ws.mergeCells('E1:G1');
+                ws.getCell('E1').value = invoiceNo;
+                ws.getCell('E1').font = { name: 'Consolas', size: 14, bold: true, color: { argb: PRIMARY } };
+                ws.getCell('E1').alignment = { horizontal: 'right', vertical: 'center' };
+                ws.getRow(1).height = 45;
+
+                // 第2行：副标题在左侧，日期在右侧
+                ws.mergeCells('A2:D2');
+                ws.getCell('A2').value = 'International Trade Document';
+                ws.getCell('A2').font = { name: 'Arial', size: 11, color: { argb: DARK } };
+                ws.getCell('A2').alignment = { horizontal: 'left', vertical: 'center' };
+
+                ws.mergeCells('E2:G2');
+                ws.getCell('E2').value = invoiceDate;
+                ws.getCell('E2').font = { name: 'Arial', size: 11, color: { argb: DARK } };
+                ws.getCell('E2').alignment = { horizontal: 'right', vertical: 'center' };
+                ws.getRow(2).height = 22;
+                
+                // 分隔线
+                ws.getRow(3).height = 6;
+                for (let c = 1; c <= 7; c++) {
+                    ws.getCell(3, c).border = { bottom: { style: 'medium', color: { argb: PRIMARY } } };
+                }
+
+                ws.getRow(4).height = 12;
+
+                // ===== SELLER / BUYER =====
+                row = 5;
+                ws.mergeCells('A5:C5');
+                const sellerHeader = ws.getCell('A5');
+                sellerHeader.value = '📤 SELLER';
+                sellerHeader.font = { name: 'Arial', size: 11, bold: true, color: { argb: DARK } };
+                sellerHeader.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: ALT_BG } };
+                sellerHeader.alignment = { horizontal: 'left', vertical: 'center' };
+                sellerHeader.border = {
+                    top: { style: 'thin', color: { argb: BORDER } },
+                    left: { style: 'thin', color: { argb: BORDER } },
+                    right: { style: 'thin', color: { argb: BORDER } },
+                    bottom: { style: 'thin', color: { argb: BORDER } }
+                };
+                for (let c = 1; c <= 3; c++) {
+                    ws.getCell(5, c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: ALT_BG } };
+                    ws.getCell(5, c).font = { name: 'Arial', size: 11, bold: true, color: { argb: DARK } };
+                    ws.getCell(5, c).border = {
+                        top: { style: 'thin', color: { argb: BORDER } },
+                        left: { style: 'thin', color: { argb: BORDER } },
+                        right: { style: 'thin', color: { argb: BORDER } },
+                        bottom: { style: 'thin', color: { argb: BORDER } }
+                    };
+                }
+
+                ws.mergeCells('E5:G5');
+                const buyerHeader = ws.getCell('E5');
+                buyerHeader.value = '📥 BUYER';
+                buyerHeader.font = { name: 'Arial', size: 11, bold: true, color: { argb: DARK } };
+                buyerHeader.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: ALT_BG } };
+                buyerHeader.alignment = { horizontal: 'left', vertical: 'center' };
+                buyerHeader.border = {
+                    top: { style: 'thin', color: { argb: BORDER } },
+                    left: { style: 'thin', color: { argb: BORDER } },
+                    right: { style: 'thin', color: { argb: BORDER } },
+                    bottom: { style: 'thin', color: { argb: BORDER } }
+                };
+                for (let c = 5; c <= 7; c++) {
+                    ws.getCell(5, c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: ALT_BG } };
+                    ws.getCell(5, c).font = { name: 'Arial', size: 11, bold: true, color: { argb: DARK } };
+                    ws.getCell(5, c).border = {
+                        top: { style: 'thin', color: { argb: BORDER } },
+                        left: { style: 'thin', color: { argb: BORDER } },
+                        right: { style: 'thin', color: { argb: BORDER } },
+                        bottom: { style: 'thin', color: { argb: BORDER } }
+                    };
+                }
+                ws.getRow(5).height = 28;
+                
+                // Seller 信息
+                const sellerData = [
+                    [sellerCompany],
+                    [sellerAddress],
+                    [sellerContact]
+                ];
+                sellerData.forEach((d, i) => {
+                    const r = 6 + i;
+                    ws.mergeCells(`A${r}:C${r}`);
+                    const valueCell = ws.getCell(r, 1);
+                    valueCell.value = d[0];
+                    valueCell.font = { name: 'Arial', size: 10, color: { argb: DARK } };
+                    valueCell.alignment = { wrapText: true, vertical: 'middle', horizontal: 'left' };
+                    valueCell.border = {
+                        left: { style: 'thin', color: { argb: BORDER } },
+                        right: { style: 'thin', color: { argb: BORDER } },
+                        bottom: { style: 'thin', color: { argb: BORDER } }
+                    };
+                    for (let c = 2; c <= 3; c++) {
+                        ws.getCell(r, c).font = { name: 'Arial', size: 10, color: { argb: DARK } };
+                        ws.getCell(r, c).border = {
+                            left: { style: 'thin', color: { argb: BORDER } },
+                            right: { style: 'thin', color: { argb: BORDER } },
+                            bottom: { style: 'thin', color: { argb: BORDER } }
+                        };
+                    }
+                    // 动态行高：地址行更高
+                    ws.getRow(r).height = i === 1 ? 50 : 26;
+                });
+
+                // Buyer 信息
+                const buyerData = [
+                    [buyerCompany],
+                    [buyerAddress],
+                    [buyerContact]
+                ];
+                buyerData.forEach((d, i) => {
+                    const r = 6 + i;
+                    ws.mergeCells(`E${r}:G${r}`);
+                    const valueCell = ws.getCell(r, 5);
+                    valueCell.value = d[0];
+                    valueCell.font = { name: 'Arial', size: 10, color: { argb: DARK } };
+                    valueCell.alignment = { wrapText: true, vertical: 'middle', horizontal: 'left' };
+                    valueCell.border = {
+                        left: { style: 'thin', color: { argb: BORDER } },
+                        right: { style: 'thin', color: { argb: BORDER } },
+                        bottom: { style: 'thin', color: { argb: BORDER } }
+                    };
+                    for (let c = 6; c <= 7; c++) {
+                        ws.getCell(r, c).font = { name: 'Arial', size: 10, color: { argb: DARK } };
+                        ws.getCell(r, c).border = {
+                            left: { style: 'thin', color: { argb: BORDER } },
+                            right: { style: 'thin', color: { argb: BORDER } },
+                            bottom: { style: 'thin', color: { argb: BORDER } }
+                        };
+                    }
+                });
+
+                ws.getRow(9).height = 15;
+
+                // ===== 产品表头 =====
+                row = 10;
+                ws.mergeCells('A10:D10');
+                const prodHeaderDesc = ws.getCell('A10');
+                prodHeaderDesc.value = 'Description';
+                prodHeaderDesc.font = { name: 'Arial', size: 10, bold: true, color: { argb: DARK } };
+                prodHeaderDesc.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: ALT_BG } };
+                prodHeaderDesc.alignment = { horizontal: 'left', vertical: 'center' };
+                for (let c = 1; c <= 4; c++) {
+                    ws.getCell(10, c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: ALT_BG } };
+                    ws.getCell(10, c).font = { name: 'Arial', size: 10, bold: true, color: { argb: DARK } };
+                    ws.getCell(10, c).border = {
+                        top: { style: 'thin', color: { argb: BORDER } },
+                        left: { style: 'thin', color: { argb: BORDER } },
+                        right: { style: 'thin', color: { argb: BORDER } },
+                        bottom: { style: 'thin', color: { argb: BORDER } }
+                    };
+                }
+
+                const qtyHeader = ws.getCell('E10');
+                qtyHeader.value = 'Qty';
+                qtyHeader.font = { name: 'Arial', size: 10, bold: true, color: { argb: DARK } };
+                qtyHeader.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: ALT_BG } };
+                qtyHeader.alignment = { horizontal: 'center', vertical: 'center' };
+                qtyHeader.border = {
+                    top: { style: 'thin', color: { argb: BORDER } },
+                    left: { style: 'thin', color: { argb: BORDER } },
+                    right: { style: 'thin', color: { argb: BORDER } },
+                    bottom: { style: 'thin', color: { argb: BORDER } }
+                };
+
+                const priceHeader = ws.getCell('F10');
+                priceHeader.value = 'Price';
+                priceHeader.font = { name: 'Arial', size: 10, bold: true, color: { argb: DARK } };
+                priceHeader.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: ALT_BG } };
+                priceHeader.alignment = { horizontal: 'center', vertical: 'center' };
+                priceHeader.border = {
+                    top: { style: 'thin', color: { argb: BORDER } },
+                    left: { style: 'thin', color: { argb: BORDER } },
+                    right: { style: 'thin', color: { argb: BORDER } },
+                    bottom: { style: 'thin', color: { argb: BORDER } }
+                };
+
+                const amtHeader = ws.getCell('G10');
+                amtHeader.value = 'Amount';
+                amtHeader.font = { name: 'Arial', size: 10, bold: true, color: { argb: DARK } };
+                amtHeader.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: ALT_BG } };
+                amtHeader.alignment = { horizontal: 'center', vertical: 'center' };
+                amtHeader.border = {
+                    top: { style: 'thin', color: { argb: BORDER } },
+                    left: { style: 'thin', color: { argb: BORDER } },
+                    right: { style: 'thin', color: { argb: BORDER } },
+                    bottom: { style: 'thin', color: { argb: BORDER } }
+                };
+                ws.getRow(10).height = 28;
+
+                // ===== 产品数据 =====
+                row = 11;
+                productList.forEach((p, idx) => {
+                    // 交替行背景色
+                    const rowBg = idx % 2 === 0 ? 'FFFFFF' : ALT_BG;
+
+                    ws.mergeCells(`A${row}:D${row}`);
+                    const descCell = ws.getCell(row, 1);
+                    descCell.value = p.desc;
+                    descCell.font = { name: 'Arial', size: 11, color: { argb: DARK } };
+                    descCell.alignment = { vertical: 'center', horizontal: 'left', wrapText: true };
+                    descCell.fill = { type: 'solid', fgColor: { argb: rowBg } };
+                    descCell.border = {
+                        left: { style: 'thin', color: { argb: BORDER } },
+                        bottom: { style: 'thin', color: { argb: BORDER } }
+                    };
+                    // 确保合并单元格的所有格子都有边框和背景
+                    for (let c = 2; c <= 4; c++) {
+                        ws.getCell(row, c).fill = { type: 'solid', fgColor: { argb: rowBg } };
+                        ws.getCell(row, c).border = {
+                            left: { style: 'thin', color: { argb: BORDER } },
+                            bottom: { style: 'thin', color: { argb: BORDER } },
+                            right: c === 4 ? { style: 'thin', color: { argb: BORDER } } : undefined
+                        };
+                    }
+
+                    const qtyCell = ws.getCell(row, 5);
+                    qtyCell.value = p.qty;
+                    qtyCell.font = { name: 'Arial', size: 11, color: { argb: DARK } };
+                    qtyCell.alignment = { horizontal: 'center', vertical: 'center' };
+                    qtyCell.fill = { type: 'solid', fgColor: { argb: rowBg } };
+                    qtyCell.border = {
+                        left: { style: 'thin', color: { argb: BORDER } },
+                        right: { style: 'thin', color: { argb: BORDER } },
+                        bottom: { style: 'thin', color: { argb: BORDER } }
+                    };
+
+                    const priceCell = ws.getCell(row, 6);
+                    priceCell.value = p.price;
+                    priceCell.font = { name: 'Arial', size: 11, color: { argb: DARK } };
+                    priceCell.alignment = { horizontal: 'center', vertical: 'center' };
+                    priceCell.fill = { type: 'solid', fgColor: { argb: rowBg } };
+                    priceCell.border = {
+                        left: { style: 'thin', color: { argb: BORDER } },
+                        right: { style: 'thin', color: { argb: BORDER } },
+                        bottom: { style: 'thin', color: { argb: BORDER } }
+                    };
+
+                    const amtCell = ws.getCell(row, 7);
+                    amtCell.value = p.amount;
+                    amtCell.font = { name: 'Consolas', size: 12, bold: true, color: { argb: DARK } };
+                    amtCell.alignment = { horizontal: 'right', vertical: 'center' };
+                    amtCell.fill = { type: 'solid', fgColor: { argb: rowBg } };
+                    amtCell.border = {
+                        left: { style: 'thin', color: { argb: BORDER } },
+                        right: { style: 'thin', color: { argb: BORDER } },
+                        bottom: { style: 'thin', color: { argb: BORDER } }
+                    };
+
+                    ws.getRow(row).height = 32;
+                    row++;
+                });
+
+                // 空产品行填充（最少显示5行）
+                const minRows = 5;
+                while (row < 11 + minRows) {
+                    ws.mergeCells(`A${row}:D${row}`);
+                    const emptyDesc = ws.getCell(row, 1);
+                    emptyDesc.border = {
+                        left: { style: 'thin', color: { argb: BORDER } },
+                        bottom: { style: 'thin', color: { argb: BORDER } }
+                    };
+                    for (let c = 2; c <= 4; c++) {
+                        ws.getCell(row, c).border = {
+                            left: { style: 'thin', color: { argb: BORDER } },
+                            bottom: { style: 'thin', color: { argb: BORDER } },
+                            right: c === 4 ? { style: 'thin', color: { argb: BORDER } } : undefined
+                        };
+                    }
+                    ws.getCell(row, 5).border = {
+                        left: { style: 'thin', color: { argb: BORDER } },
+                        right: { style: 'thin', color: { argb: BORDER } },
+                        bottom: { style: 'thin', color: { argb: BORDER } }
+                    };
+                    ws.getCell(row, 6).border = {
+                        left: { style: 'thin', color: { argb: BORDER } },
+                        right: { style: 'thin', color: { argb: BORDER } },
+                        bottom: { style: 'thin', color: { argb: BORDER } }
+                    };
+                    ws.getCell(row, 7).border = {
+                        left: { style: 'thin', color: { argb: BORDER } },
+                        right: { style: 'thin', color: { argb: BORDER } },
+                        bottom: { style: 'thin', color: { argb: BORDER } }
+                    };
+                    ws.getRow(row).height = 32;
+                    row++;
+                }
+                
+                row++;
+                ws.getRow(row).height = 12;
+
+                // ===== 金额汇总 =====
+                row++;
+                const subtotalLabel = ws.getCell(row, 6);
+                subtotalLabel.value = 'Subtotal:';
+                subtotalLabel.font = { name: 'Arial', size: 12, bold: true, color: { argb: DARK } };
+                subtotalLabel.alignment = { horizontal: 'right', vertical: 'center' };
+                subtotalLabel.fill = { type: 'solid', fgColor: { argb: ALT_BG } };
+                const subtotalValue = ws.getCell(row, 7);
+                subtotalValue.value = subtotal;
+                subtotalValue.font = { name: 'Consolas', size: 12, bold: true, color: { argb: DARK } };
+                subtotalValue.alignment = { horizontal: 'right', vertical: 'center' };
+                ws.getRow(row).height = 30;
+
+                row++;
+                const shippingLabel = ws.getCell(row, 6);
+                shippingLabel.value = 'Shipping:';
+                shippingLabel.font = { name: 'Arial', size: 12, bold: true, color: { argb: DARK } };
+                shippingLabel.alignment = { horizontal: 'right', vertical: 'center' };
+                shippingLabel.fill = { type: 'solid', fgColor: { argb: ALT_BG } };
+                const shippingValue = ws.getCell(row, 7);
+                shippingValue.value = shipping;
+                shippingValue.font = { name: 'Consolas', size: 12, color: { argb: DARK } };
+                shippingValue.alignment = { horizontal: 'right', vertical: 'center' };
+                ws.getRow(row).height = 30;
+
+                row++;
+                const totalLabel = ws.getCell(row, 6);
+                totalLabel.value = 'TOTAL:';
+                totalLabel.font = { name: 'Arial', size: 13, bold: true, color: { argb: DARK } };
+                totalLabel.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: ALT_BG } };
+                totalLabel.alignment = { horizontal: 'right', vertical: 'center' };
+                totalLabel.border = {
+                    top: { style: 'medium', color: { argb: BORDER } },
+                    left: { style: 'thin', color: { argb: BORDER } },
+                    right: { style: 'thin', color: { argb: BORDER } },
+                    bottom: { style: 'medium', color: { argb: BORDER } }
+                };
+                const totalValue = ws.getCell(row, 7);
+                totalValue.value = total;
+                totalValue.font = { name: 'Consolas', size: 14, bold: true, color: { argb: DARK } };
+                totalValue.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: ALT_BG } };
+                totalValue.alignment = { horizontal: 'right', vertical: 'center' };
+                totalValue.border = {
+                    top: { style: 'medium', color: { argb: BORDER } },
+                    left: { style: 'thin', color: { argb: BORDER } },
+                    right: { style: 'thin', color: { argb: BORDER } },
+                    bottom: { style: 'medium', color: { argb: BORDER } }
+                };
+                ws.getRow(row).height = 38;
+                
+                row++;
+                ws.getRow(row).height = 18;
+
+                // ===== TERMS / BANK =====
+                row++;
+                const tbRow = row;
+                ws.mergeCells(`A${row}:C${row}`);
+                const termsHeader = ws.getCell(row, 1);
+                termsHeader.value = '📋 TERMS';
+                termsHeader.font = { name: 'Arial', size: 10, bold: true, color: { argb: DARK } };
+                termsHeader.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: ALT_BG } };
+                termsHeader.alignment = { horizontal: 'left', vertical: 'center' };
+                for (let c = 1; c <= 3; c++) {
+                    ws.getCell(row, c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: ALT_BG } };
+                    ws.getCell(row, c).font = { name: 'Arial', size: 10, bold: true, color: { argb: DARK } };
+                    ws.getCell(row, c).border = {
+                        top: { style: 'thin', color: { argb: BORDER } },
+                        left: { style: 'thin', color: { argb: BORDER } },
+                        right: { style: 'thin', color: { argb: BORDER } },
+                        bottom: { style: 'thin', color: { argb: BORDER } }
+                    };
+                }
+
+                ws.mergeCells(`E${row}:G${row}`);
+                const bankHeader = ws.getCell(row, 5);
+                bankHeader.value = '🏦 BANK';
+                bankHeader.font = { name: 'Arial', size: 10, bold: true, color: { argb: DARK } };
+                bankHeader.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: ALT_BG } };
+                bankHeader.alignment = { horizontal: 'left', vertical: 'center' };
+                for (let c = 5; c <= 7; c++) {
+                    ws.getCell(row, c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: ALT_BG } };
+                    ws.getCell(row, c).font = { name: 'Arial', size: 10, bold: true, color: { argb: DARK } };
+                    ws.getCell(row, c).border = {
+                        top: { style: 'thin', color: { argb: BORDER } },
+                        left: { style: 'thin', color: { argb: BORDER } },
+                        right: { style: 'thin', color: { argb: BORDER } },
+                        bottom: { style: 'thin', color: { argb: BORDER } }
+                    };
+                }
+                ws.getRow(row).height = 26;
+
+                // Terms
+                const termsArr = [
+                    ['Payment:', payment],
+                    ['Validity:', piValidity],
+                    ['Lead Time:', leadTime],
+                    ['Incoterm:', incoterm],
+                    ['Destination:', destination]
+                ];
+                termsArr.forEach((t, i) => {
+                    const r = tbRow + 1 + i;
+                    const termLabel = ws.getCell(r, 1);
+                    termLabel.value = t[0];
+                    termLabel.font = { name: 'Arial', size: 10, bold: true, color: { argb: DARK } };
+                    termLabel.alignment = { vertical: 'middle', horizontal: 'left' };
+                    termLabel.fill = { type: 'solid', fgColor: { argb: LIGHT_BG } };
+                    termLabel.border = {
+                        left: { style: 'thin', color: { argb: BORDER } },
+                        right: { style: 'thin', color: { argb: BORDER } },
+                        bottom: { style: 'thin', color: { argb: BORDER } }
+                    };
+
+                    ws.mergeCells(`B${r}:C${r}`);
+                    const termValue = ws.getCell(r, 2);
+                    termValue.value = t[1];
+                    termValue.font = { name: 'Arial', size: 11, color: { argb: DARK } };
+                    termValue.alignment = { wrapText: true, vertical: 'middle', horizontal: 'left' };
+                    termValue.border = {
+                        left: { style: 'thin', color: { argb: BORDER } },
+                        right: { style: 'thin', color: { argb: BORDER } },
+                        bottom: { style: 'thin', color: { argb: BORDER } }
+                    };
+                    ws.getCell(r, 3).font = { name: 'Arial', size: 11, color: { argb: DARK } };
+                    ws.getCell(r, 3).border = {
+                        left: { style: 'thin', color: { argb: BORDER } },
+                        right: { style: 'thin', color: { argb: BORDER } },
+                        bottom: { style: 'thin', color: { argb: BORDER } }
+                    };
+                    ws.getRow(r).height = 26;
+                });
+
+                // Bank
+                const bankArr = [
+                    ['Bank:', bankName],
+                    ['Account:', accountName],
+                    ['A/C No:', accountNo],
+                    ['SWIFT:', swiftCode],
+                    ['Address:', bankAddress]
+                ];
+                bankArr.forEach((b, i) => {
+                    const r = tbRow + 1 + i;
+                    const bankLabel = ws.getCell(r, 5);
+                    bankLabel.value = b[0];
+                    bankLabel.font = { name: 'Arial', size: 10, bold: true, color: { argb: DARK } };
+                    bankLabel.alignment = { vertical: 'middle', horizontal: 'left' };
+                    bankLabel.fill = { type: 'solid', fgColor: { argb: LIGHT_BG } };
+                    bankLabel.border = {
+                        left: { style: 'thin', color: { argb: BORDER } },
+                        right: { style: 'thin', color: { argb: BORDER } },
+                        bottom: { style: 'thin', color: { argb: BORDER } }
+                    };
+
+                    ws.mergeCells(`F${r}:G${r}`);
+                    const bankValue = ws.getCell(r, 6);
+                    bankValue.value = b[1];
+                    bankValue.font = { name: 'Arial', size: 11, color: { argb: DARK } };
+                    bankValue.alignment = { wrapText: true, vertical: 'middle', horizontal: 'left' };
+                    bankValue.border = {
+                        left: { style: 'thin', color: { argb: BORDER } },
+                        right: { style: 'thin', color: { argb: BORDER } },
+                        bottom: { style: 'thin', color: { argb: BORDER } }
+                    };
+                    ws.getCell(r, 7).font = { name: 'Arial', size: 11, color: { argb: DARK } };
+                    ws.getCell(r, 7).border = {
+                        left: { style: 'thin', color: { argb: BORDER } },
+                        right: { style: 'thin', color: { argb: BORDER } },
+                        bottom: { style: 'thin', color: { argb: BORDER } }
+                    };
+                });
+                
+                row = tbRow + 6;
+                ws.getRow(row).height = 15;
+
+                // ===== INTERMEDIARY =====
+                row++;
+                const intRow = row;
+                ws.mergeCells(`A${row}:C${row}`);
+                const intHeader = ws.getCell(row, 1);
+                intHeader.value = '🔄 INTERMEDIARY';
+                intHeader.font = { name: 'Arial', size: 10, bold: true, color: { argb: DARK } };
+                intHeader.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: ALT_BG } };
+                intHeader.alignment = { horizontal: 'left', vertical: 'center' };
+                for (let c = 1; c <= 3; c++) {
+                    ws.getCell(row, c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: ALT_BG } };
+                    ws.getCell(row, c).font = { name: 'Arial', size: 10, bold: true, color: { argb: DARK } };
+                    ws.getCell(row, c).border = {
+                        top: { style: 'thin', color: { argb: BORDER } },
+                        left: { style: 'thin', color: { argb: BORDER } },
+                        right: { style: 'thin', color: { argb: BORDER } },
+                        bottom: { style: 'thin', color: { argb: BORDER } }
+                    };
+                }
+                ws.getRow(row).height = 26;
+
+                const intArr = [
+                    ['Bank:', intBankName],
+                    ['SWIFT:', intSwift],
+                    ['Address:', intAddress]
+                ];
+                intArr.forEach((d, i) => {
+                    const r = intRow + 1 + i;
+                    const intLabel = ws.getCell(r, 1);
+                    intLabel.value = d[0];
+                    intLabel.font = { name: 'Arial', size: 10, bold: true, color: { argb: DARK } };
+                    intLabel.alignment = { vertical: 'middle', horizontal: 'left' };
+                    intLabel.fill = { type: 'solid', fgColor: { argb: LIGHT_BG } };
+                    intLabel.border = {
+                        left: { style: 'thin', color: { argb: BORDER } },
+                        right: { style: 'thin', color: { argb: BORDER } },
+                        bottom: { style: 'thin', color: { argb: BORDER } }
+                    };
+
+                    ws.mergeCells(`B${r}:C${r}`);
+                    const intValue = ws.getCell(r, 2);
+                    intValue.value = d[1];
+                    intValue.font = { name: 'Arial', size: 11, color: { argb: DARK } };
+                    intValue.alignment = { wrapText: true, vertical: 'middle', horizontal: 'left' };
+                    intValue.border = {
+                        left: { style: 'thin', color: { argb: BORDER } },
+                        right: { style: 'thin', color: { argb: BORDER } },
+                        bottom: { style: 'thin', color: { argb: BORDER } }
+                    };
+                    ws.getCell(r, 3).font = { name: 'Arial', size: 11, color: { argb: DARK } };
+                    ws.getCell(r, 3).border = {
+                        left: { style: 'thin', color: { argb: BORDER } },
+                        right: { style: 'thin', color: { argb: BORDER } },
+                        bottom: { style: 'thin', color: { argb: BORDER } }
+                    };
+                    ws.getRow(r).height = 26;
+                });
+
+                // ===== 签名区 =====
+                ws.mergeCells(`E${intRow}:G${intRow + 3}`);
+                const sigCell = ws.getCell(intRow, 5);
+                sigCell.fill = { type: 'solid', fgColor: { argb: LIGHT_BG } };
+                sigCell.border = {
+                    top: { style: 'thin', color: { argb: BORDER } },
+                    left: { style: 'thin', color: { argb: BORDER } },
+                    right: { style: 'thin', color: { argb: BORDER } },
+                    bottom: { style: 'thin', color: { argb: BORDER } }
+                };
+
+                const stampImg = document.getElementById('stamp-img');
+                if (stampImg && stampImg.style.display !== 'none' && stampImg.src && stampImg.src.startsWith('data:image')) {
+                    try {
+                        const b64 = stampImg.src.split(',')[1];
+                        const ext = stampImg.src.includes('png') ? 'png' : 'jpeg';
+                        const imgId = workbook.addImage({ base64: b64, extension: ext });
+                        ws.addImage(imgId, { tl: { col: 4.3, row: intRow - 0.7 }, ext: { width: 220, height: 120 } });
+                    } catch (e) { console.log('Stamp error', e); }
+                } else {
+                    sigCell.value = 'For and on behalf of\n' + sellerCompany + '\n\n\n_______________________\nAuthorized Signature';
+                    sigCell.font = { name: 'Arial', size: 11, italic: true, color: { argb: DARK } };
+                    sigCell.alignment = { horizontal: 'center', vertical: 'center', wrapText: true };
+                }
+
+                // 确保合并单元格的所有格子都有边框
+                for (let r = intRow; r <= intRow + 3; r++) {
+                    for (let c = 5; c <= 7; c++) {
+                        ws.getCell(r, c).border = {
+                            top: { style: 'thin', color: { argb: BORDER } },
+                            left: { style: 'thin', color: { argb: BORDER } },
+                            right: { style: 'thin', color: { argb: BORDER } },
+                            bottom: { style: 'thin', color: { argb: BORDER } }
+                        };
+                    }
+                }
+                
+                // ===== 下载 =====
+                const buffer = await workbook.xlsx.writeBuffer();
+                const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${invoiceNo || 'Invoice'}_${new Date().toISOString().slice(0,10)}.xlsx`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                result.className = 'share-result success';
+                result.innerHTML = '✅ Excel downloaded!';
+                
+            } catch (e) {
+                console.error('Excel error:', e);
+                result.className = 'share-result warning';
+                result.innerHTML = '❌ ' + e.message;
+            }
+        }
+
+        // ==================== RENDER ====================
+        function renderAll(){renderProducts();renderCustomers();renderHistory();document.getElementById('products-count').textContent=products.length;document.getElementById('customers-count').textContent=customers.length;document.getElementById('history-count').textContent=history.length;}
+        function renderProducts(){const grid=document.getElementById('products-grid');if(!products.length){grid.innerHTML='<div class="empty-state"><div class="empty-state-icon">📦</div><h3>No products</h3></div>';return;}grid.innerHTML=products.map(p=>`<div class="library-card"><div class="library-card-header"><div class="library-card-title">${p.name}</div><button class="btn btn-danger" style="padding:4px 8px;" onclick="deleteProduct(${p.id})">🗑️</button></div><div class="library-card-detail">${p.unit} · ${p.price||'-'}</div></div>`).join('');}
+        function renderCustomers(){const grid=document.getElementById('customers-grid');if(!customers.length){grid.innerHTML='<div class="empty-state"><div class="empty-state-icon">👥</div><h3>No customers</h3></div>';return;}grid.innerHTML=customers.map(c=>`<div class="library-card"><div class="library-card-header"><div class="library-card-title">${c.company}</div><button class="btn btn-danger" style="padding:4px 8px;" onclick="deleteCustomer(${c.id})">🗑️</button></div><div class="library-card-detail">${c.address||'-'}</div></div>`).join('');}
+        function renderHistory(){const list=document.getElementById('history-list');if(!history.length){list.innerHTML='<div class="empty-state"><div class="empty-state-icon">📋</div><h3>No history</h3></div>';return;}list.innerHTML=history.map(h=>`<div class="history-item"><div class="history-info"><h4>${h.invoiceNo} — ${h.buyer}</h4><p>${new Date(h.date).toLocaleDateString()}</p></div><div class="history-amount">${h.total}</div><div class="history-actions"><button class="btn btn-primary" onclick="loadFromHistory(${h.id})">📂</button><button class="btn btn-danger" onclick="deleteHistory(${h.id})">🗑️</button></div></div>`).join('');}
+        function toast(msg){document.querySelectorAll('.toast').forEach(t=>t.remove());const t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),3000);}
+        document.addEventListener('click',e=>{if(!e.target.closest('.search-wrapper'))document.querySelectorAll('.search-dropdown').forEach(d=>d.classList.remove('show'));});
+
+        // ==================== P2P SYNC ====================
+        let peer = null;
+        let conn = null;
+        let hostCode = '';
+        
+        function generateCode() {
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+            let code = '';
+            for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
+            return code;
+        }
+        
+        function getAllData() {
+            return {
+                products: products,
+                customers: customers,
+                history: history,
+                settings: {
+                    company: settings.company,
+                    address: settings.address,
+                    contact: settings.contact,
+                    bankName: settings.bankName,
+                    acctName: settings.acctName,
+                    acctNo: settings.acctNo,
+                    swift: settings.swift,
+                    bankAddr: settings.bankAddr,
+                    interBankName: settings.interBankName,
+                    interSwift: settings.interSwift,
+                    interAddr: settings.interAddr,
+                    stamp: settings.stamp,
+                    stampSize: settings.stampSize,
+                    aiProvider: settings.aiProvider,
+                    aiApiKey: settings.aiApiKey
+                }
+            };
+        }
+        
+        function applyData(data) {
+            let stats = { products: 0, customers: 0, history: 0 };
+            
+            // 智能合并 Products (按名称去重)
+            if (data.products && data.products.length) {
+                const existingNames = new Set(products.map(p => p.name.toLowerCase().trim()));
+                data.products.forEach(p => {
+                    const name = (p.name || '').toLowerCase().trim();
+                    if (name && !existingNames.has(name)) {
+                        products.push({ ...p, id: Date.now() + Math.random() });
+                        existingNames.add(name);
+                        stats.products++;
+                    }
+                });
+                localStorage.setItem('inv_products', JSON.stringify(products));
+            }
+            
+            // 智能合并 Customers (按公司名去重)
+            if (data.customers && data.customers.length) {
+                const existingCompanies = new Set(customers.map(c => c.company.toLowerCase().trim()));
+                data.customers.forEach(c => {
+                    const company = (c.company || '').toLowerCase().trim();
+                    if (company && !existingCompanies.has(company)) {
+                        customers.push({ ...c, id: Date.now() + Math.random() });
+                        existingCompanies.add(company);
+                        stats.customers++;
+                    }
+                });
+                localStorage.setItem('inv_customers', JSON.stringify(customers));
+            }
+            
+            // 智能合并 History (按 invoiceNo 去重)
+            if (data.history && data.history.length) {
+                const existingInvoices = new Set(history.map(h => h.invoiceNo));
+                data.history.forEach(h => {
+                    if (h.invoiceNo && !existingInvoices.has(h.invoiceNo)) {
+                        history.unshift({ ...h, id: Date.now() + Math.random() });
+                        existingInvoices.add(h.invoiceNo);
+                        stats.history++;
+                    }
+                });
+                // 保持最新的在前面，限制数量
+                history.sort((a, b) => new Date(b.date) - new Date(a.date));
+                if (history.length > 100) history = history.slice(0, 100);
+                localStorage.setItem('inv_history', JSON.stringify(history));
+            }
+            
+            // Settings 直接覆盖（公司、银行等信息）
+            if (data.settings) {
+                Object.assign(settings, data.settings);
+                localStorage.setItem('inv_settings', JSON.stringify(settings));
+                loadSettings();
+            }
+            
+            renderAll();
+            return stats;
+        }
+        
+        function loadPeerJS(callback) {
+            if (window.Peer) { callback(); return; }
+            const script = document.createElement('script');
+            script.src = 'https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js';
+            script.onload = callback;
+            script.onerror = () => toast('❌ Failed to load PeerJS');
+            document.head.appendChild(script);
+        }
+        
+        function startSyncHost() {
+            loadPeerJS(() => {
+                hostCode = generateCode();
+                document.getElementById('sync-mode-select').style.display = 'none';
+                document.getElementById('sync-host-section').style.display = 'block';
+                document.getElementById('host-code').textContent = hostCode;
+                
+                const statusEl = document.getElementById('host-status');
+                statusEl.className = 'sync-status syncing';
+                statusEl.innerHTML = '<div class="loading loading-white" style="width:16px;height:16px;"></div><span>Connecting to server...</span>';
+                
+                peer = new Peer('invpro-' + hostCode, {
+                    debug: 0
+                });
+                
+                peer.on('open', (id) => {
+                    statusEl.innerHTML = '<div class="loading loading-white" style="width:16px;height:16px;"></div><span>Waiting for connection...</span>';
+                });
+                
+                peer.on('connection', (connection) => {
+                    conn = connection;
+                    statusEl.className = 'sync-status success';
+                    statusEl.innerHTML = '<span>📱 Device connected! Sending data...</span>';
+                    
+                    conn.on('open', () => {
+                        const data = getAllData();
+                        conn.send(JSON.stringify(data));
+                    });
+                    
+                    conn.on('data', (msg) => {
+                        if (msg === 'received') {
+                            showSyncSuccess('Data sent successfully!');
+                        }
+                    });
+                });
+                
+                peer.on('error', (err) => {
+                    console.error('Peer error:', err);
+                    if (err.type === 'unavailable-id') {
+                        // Code already in use, generate new one
+                        destroyPeer();
+                        startSyncHost();
+                    } else {
+                        statusEl.className = 'sync-status error';
+                        statusEl.innerHTML = '<span>❌ Connection error. Try again.</span>';
+                    }
+                });
+            });
+        }
+        
+        function showJoinInput() {
+            document.getElementById('sync-mode-select').style.display = 'none';
+            document.getElementById('sync-join-section').style.display = 'block';
+            document.getElementById('join-code-input').value = '';
+            document.getElementById('join-code-input').focus();
+        }
+        
+        function joinSync() {
+            const code = document.getElementById('join-code-input').value.toUpperCase().trim();
+            if (code.length !== 6) { toast('⚠️ Enter 6-character code'); return; }
+            
+            const statusEl = document.getElementById('join-status');
+            statusEl.style.display = 'flex';
+            statusEl.className = 'sync-status syncing';
+            statusEl.innerHTML = '<div class="loading loading-white" style="width:16px;height:16px;"></div><span>Connecting...</span>';
+            
+            loadPeerJS(() => {
+                peer = new Peer({
+                    debug: 0
+                });
+                
+                peer.on('open', () => {
+                    conn = peer.connect('invpro-' + code, { reliable: true });
+                    
+                    conn.on('open', () => {
+                        statusEl.innerHTML = '<div class="loading loading-white" style="width:16px;height:16px;"></div><span>Receiving data...</span>';
+                    });
+                    
+                    conn.on('data', (dataStr) => {
+                        try {
+                            const data = JSON.parse(dataStr);
+                            const stats = applyData(data);
+                            conn.send('received');
+                            const msg = `Synced! +${stats.products} products, +${stats.customers} customers, +${stats.history} invoices`;
+                            showSyncSuccess(msg);
+                        } catch (e) {
+                            statusEl.className = 'sync-status error';
+                            statusEl.innerHTML = '<span>❌ Invalid data received</span>';
+                        }
+                    });
+                    
+                    conn.on('error', (err) => {
+                        statusEl.className = 'sync-status error';
+                        statusEl.innerHTML = '<span>❌ Connection failed</span>';
+                    });
+                });
+                
+                peer.on('error', (err) => {
+                    console.error('Peer error:', err);
+                    statusEl.className = 'sync-status error';
+                    if (err.type === 'peer-unavailable') {
+                        statusEl.innerHTML = '<span>❌ Code not found. Check and try again.</span>';
+                    } else {
+                        statusEl.innerHTML = '<span>❌ Connection error</span>';
+                    }
+                });
+            });
+        }
+        
+        function showSyncSuccess(msg) {
+            document.getElementById('sync-host-section').style.display = 'none';
+            document.getElementById('sync-join-section').style.display = 'none';
+            document.getElementById('sync-success-section').style.display = 'block';
+            document.getElementById('sync-result-text').textContent = msg;
+            destroyPeer();
+            toast('✅ ' + msg);
+        }
+        
+        function cancelSync() {
+            destroyPeer();
+            resetSyncUI();
+        }
+        
+        function resetSyncUI() {
+            document.getElementById('sync-mode-select').style.display = 'block';
+            document.getElementById('sync-host-section').style.display = 'none';
+            document.getElementById('sync-join-section').style.display = 'none';
+            document.getElementById('sync-success-section').style.display = 'none';
+            document.getElementById('join-status').style.display = 'none';
+        }
+        
+        function destroyPeer() {
+            if (conn) { conn.close(); conn = null; }
+            if (peer) { peer.destroy(); peer = null; }
+        }
+        
+        function copySyncCode() {
+            const code = document.getElementById('host-code').textContent;
+            if (code && code !== '------') {
+                navigator.clipboard.writeText(code)
+                    .then(() => toast('📋 Copied: ' + code))
+                    .catch(() => toast('Code: ' + code));
+            }
+        }
+    </script>
+</body>
+</html>
